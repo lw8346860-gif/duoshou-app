@@ -149,7 +149,7 @@ export function getRetentionRate(asset: Asset, accessories: Accessory[]): number
 }
 
 /** 闲置警报：高价值但闲置的资产 */
-export function getIdleAlertAssets(assets: Asset[], accessories: Accessory[]): Asset[] {
+export function getIdleAlertAssets(assets: Asset[], _accessories: Accessory[]): Asset[] {
   return assets
     .filter(a => a.status === 'idle')
     .sort((a, b) => b.currentValue - a.currentValue);

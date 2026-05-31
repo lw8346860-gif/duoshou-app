@@ -1,18 +1,16 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAssets, useAccessories } from '../hooks/useAssets';
-import { useWishlist } from '../hooks/useWishlist';
+import { useAssets } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useSettings';
 import {
-  getTotalCost, getDailyCost, getLoss, getUsedDays,
-  formatCurrency, formatDuration, getIdleAlertAssets, getNearTargetAssets,
+  getTotalCost, getDailyCost, getLoss,
+  formatCurrency, getIdleAlertAssets, getNearTargetAssets,
 } from '../utils/calculations';
 import AssetCard from '../components/AssetCard';
 
 export default function Dashboard() {
   const { assets } = useAssets();
   const { categories } = useCategories();
-  const { items: wishlistItems } = useWishlist();
   const navigate = useNavigate();
 
   const allAccessories = useMemo(() => {

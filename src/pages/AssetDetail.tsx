@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAsset, useAssetAccessories, useAssetUsageRecords, useAssetMutations, useUsageRecordMutations } from '../hooks/useLiveQuery';
-import { calcAssetMetrics, formatMoney, formatDays, formatNumber } from '../utils/calculations';
+import { calcAssetMetrics, formatMoney, formatDays } from '../utils/calculations';
 import { STATUS_LABELS, STATUS_COLORS, ACCESSORY_TYPE_LABELS } from '../types';
 
 export default function AssetDetail() {

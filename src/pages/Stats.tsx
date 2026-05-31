@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useAssets, useAccessories } from '../hooks/useAssets';
+import { useAssets } from '../hooks/useAssets';
 import { useWishlist } from '../hooks/useWishlist';
 import { useCategories } from '../hooks/useSettings';
 import {
   getTotalCost, getDailyCost, getLoss, getRetentionRate, getUsedDays,
-  formatCurrency, formatDuration,
+  formatCurrency,
 } from '../utils/calculations';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -126,10 +126,10 @@ export default function Stats() {
               <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">分类投入占比</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}>
                     {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -143,7 +143,7 @@ export default function Stats() {
                 <BarChart data={rankings.highestDaily.map(a => ({ name: a.name.slice(0, 6), daily: getDailyCost(a, allAccessories) }))}>
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
                   <Bar dataKey="daily" fill="#111111" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -157,7 +157,7 @@ export default function Stats() {
                 <BarChart data={rankings.mostLoss.map(a => ({ name: a.name.slice(0, 6), loss: getLoss(a, allAccessories) }))}>
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
                   <Bar dataKey="loss" fill="#FF4D4F" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

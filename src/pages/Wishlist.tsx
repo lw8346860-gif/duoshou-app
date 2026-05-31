@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useWishlistItems, useWishlistMutations, useAssetMutations, useCategories, useTags } from '../hooks/useLiveQuery';
+import { useWishlistItems, useWishlistMutations, useAssetMutations, useCategories } from '../hooks/useLiveQuery';
 import { calcWishlistDays, calcImpulseLevel, formatMoney, formatDays } from '../utils/calculations';
 import type { WishlistItem } from '../types';
 import { WISHLIST_STATUS_LABELS } from '../types';
