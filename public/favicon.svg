@@ -1,4 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="128" fill="#111111"/>
-  <text x="256" y="340" font-size="280" text-anchor="middle" fill="#B7F23A" font-family="system-ui, sans-serif" font-weight="bold">剁</text>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="32" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF3E2"/>
+      <stop offset="0.48" stop-color="#F59E0B"/>
+      <stop offset="1" stop-color="#7C2D12"/>
+    </linearGradient>
+    <linearGradient id="card" x1="128" y1="116" x2="384" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFDF8"/>
+      <stop offset="1" stop-color="#FFE2B8"/>
+    </linearGradient>
+    <filter id="shadow" x="48" y="60" width="416" height="404" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="26" flood-color="#4A1F08" flood-opacity=".24"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bg)"/>
+  <rect x="112" y="96" width="288" height="320" rx="80" fill="url(#card)" filter="url(#shadow)"/>
+  <path d="M178 190h156M178 256h156M178 322h92" fill="none" stroke="#7C2D12" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="334" cy="322" r="36" fill="#D97706"/>
+  <path d="M320 322h28M334 308v28" stroke="#FFF8EF" stroke-width="12" stroke-linecap="round"/>
 </svg>

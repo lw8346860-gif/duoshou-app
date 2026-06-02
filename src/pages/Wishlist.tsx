@@ -4,36 +4,25 @@ import { useWishlistItems, useWishlistMutations, useAssetMutations, useCategorie
 import { calcWishlistDays, calcImpulseLevel, formatMoney, formatDays } from '../utils/calculations';
 import type { WishlistItem } from '../types';
 import { WISHLIST_STATUS_LABELS } from '../types';
+import CategoryIcon from '../components/CategoryIcon';
 
-function WishlistCard({ item, onConvert, onDelete }: {
+function WishlistCard({ item, onConvert, onDelete, onClick }: {
   item: WishlistItem;
   onConvert: (item: WishlistItem) => void;
   onDelete: (id: string) => void;
+  onClick: () => void;
 }) {
   const days = calcWishlistDays(item.expectedPrice, item.expectedResidualValue, item.targetDailyCost);
   const impulse = calcImpulseLevel(item.cooldownDays, item.expectedPrice);
 
-  const impulseColors: Record<string, string> = {
-    '危险': '#FF4D4F',
-    '观察': '#faad14',
-    '冷静中': '#1890ff',
-    '冷静': '#52c41a',
-    '非常冷静': '#52c41a',
-  };
-
   return (
-    <div className="bg-white rounded-2xl p-4 space-y-3">
+    <div onClick={onClick} className="bg-white rounded-2xl p-4 space-y-3 cursor-pointer active:bg-[#FAFAFA]">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-[#1D1D1F] truncate">{item.name}</span>
-            <span
-              className="text-[10px] px-1.5 py-0.5 rounded-full"
-              style={{
-                backgroundColor: (impulseColors[impulse] ?? '#8E8E93') + '20',
-                color: impulseColors[impulse] ?? '#8E8E93',
-              }}
-            >
+            <span className="notice-pill text-[10px] px-1.5 py-0.5 rounded-full inline-flex items-center gap-1">
+              <span className="notice-dot" />
               {impulse}
             </span>
           </div>
@@ -73,13 +62,13 @@ function WishlistCard({ item, onConvert, onDelete }: {
       {item.status === 'watching' && (
         <div className="flex gap-2">
           <button
-            onClick={() => onConvert(item)}
+            onClick={e => { e.stopPropagation(); onConvert(item); }}
             className="flex-1 bg-[#B7F23A] text-[#111111] py-2 rounded-xl text-xs font-semibold"
           >
             转为资产
           </button>
           <button
-            onClick={() => onDelete(item.id)}
+            onClick={e => { e.stopPropagation(); onDelete(item.id); }}
             className="px-3 py-2 rounded-xl text-xs text-[#8E8E93] bg-[#F5F5F3]"
           >
             放弃
@@ -165,8 +154,8 @@ export default function Wishlist() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-[#1D1D1F]">心愿清单</h1>
         <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-[#111111] text-white px-3 py-1.5 rounded-full text-xs"
+          onClick={() => navigate('/wishlist/new')}
+          className="btn-primary px-3 py-1.5 rounded-full text-xs"
         >
           + 新心愿
         </button>
@@ -241,11 +230,11 @@ export default function Wishlist() {
                 <button
                   key={cat.id}
                   onClick={() => setForm(p => ({ ...p, categoryId: cat.id }))}
-                  className={`px-2 py-1 rounded-full text-[10px] ${
-                    form.categoryId === cat.id ? 'bg-[#111111] text-white' : 'bg-[#F5F5F3] text-[#1D1D1F]'
+                  className={`choice-chip px-2 py-1 rounded-full text-[10px] ${
+                    form.categoryId === cat.id ? 'choice-chip-selected' : ''
                   }`}
                 >
-                  {cat.icon} {cat.name}
+                  <CategoryIcon category={cat} /> {cat.name}
                 </button>
               ))}
             </div>
@@ -276,6 +265,7 @@ export default function Wishlist() {
               item={item}
               onConvert={handleConvert}
               onDelete={handleDelete}
+              onClick={() => navigate(`/wishlist/${item.id}`)}
             />
           ))}
         </div>
@@ -307,7 +297,7 @@ export default function Wishlist() {
 
       {items.length === 0 && !showForm && (
         <div className="bg-white rounded-2xl p-8 text-center">
-          <div className="text-3xl mb-2">💝</div>
+          <div className="category-icon text-3xl mb-2 mx-auto"><span className="category-icon-fallback">心</span></div>
           <div className="text-sm text-[#8E8E93]">还没有心愿，点击「+ 新心愿」添加</div>
         </div>
       )}

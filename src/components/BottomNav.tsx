@@ -1,11 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const tabs = [
-  { path: '/', label: '首页', icon: '🏠' },
-  { path: '/assets', label: '资产', icon: '📦' },
-  { path: '/wishlist', label: '心愿', icon: '💝' },
-  { path: '/stats', label: '统计', icon: '📊' },
-  { path: '/settings', label: '设置', icon: '⚙️' },
+  { path: '/', label: '首页', icon: 'home' },
+  { path: '/assets', label: '资产', icon: 'assets' },
+  { path: '/wishlist', label: '心愿', icon: 'wishlist' },
+  { path: '/stats', label: '统计', icon: 'stats' },
+  { path: '/settings', label: '设置', icon: 'settings' },
 ];
 
 export default function BottomNav() {
@@ -24,7 +24,7 @@ export default function BottomNav() {
               active ? 'text-[#1D1D1F]' : 'text-[#8E8E93]'
             }`}
           >
-            <span className="text-xl">{tab.icon}</span>
+            <span className={`nav-icon nav-${tab.icon}`} aria-hidden="true" />
             <span className={`text-[10px] mt-0.5 ${active ? 'font-semibold' : ''}`}>{tab.label}</span>
           </button>
         );

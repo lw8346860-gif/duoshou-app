@@ -1,15 +1,18 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAssets } from '../hooks/useAssets';
+import { useAllAccessories, useAssets } from '../hooks/useAssets';
 import { useCategories, useTags } from '../hooks/useSettings';
 import type { AssetStatus } from '../types';
 import { STATUS_LABELS } from '../types';
 import AssetCard from '../components/AssetCard';
+import CategoryIcon from '../components/CategoryIcon';
+import { getDailyCost, getLoss, getRetentionRate, getUsedDays } from '../utils/calculations';
 
 type SortKey = 'updatedAt' | 'purchaseDate' | 'purchasePrice' | 'dailyCost' | 'loss' | 'usedDays' | 'retention';
 
 export default function AssetList() {
   const { assets } = useAssets();
+  const allAccessories = useAllAccessories();
   const { categories } = useCategories();
   const { tags } = useTags();
   const navigate = useNavigate();
@@ -49,13 +52,17 @@ export default function AssetList() {
       switch (sortBy) {
         case 'purchaseDate': return b.purchaseDate.localeCompare(a.purchaseDate);
         case 'purchasePrice': return b.purchasePrice - a.purchasePrice;
+        case 'dailyCost': return getDailyCost(b, allAccessories.filter(acc => acc.assetId === b.id)) - getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id));
+        case 'loss': return getLoss(b, allAccessories.filter(acc => acc.assetId === b.id)) - getLoss(a, allAccessories.filter(acc => acc.assetId === a.id));
+        case 'usedDays': return getUsedDays(b) - getUsedDays(a);
+        case 'retention': return getRetentionRate(b, allAccessories.filter(acc => acc.assetId === b.id)) - getRetentionRate(a, allAccessories.filter(acc => acc.assetId === a.id));
         case 'updatedAt': return b.updatedAt.localeCompare(a.updatedAt);
         default: return b.updatedAt.localeCompare(a.updatedAt);
       }
     });
 
     return result;
-  }, [assets, search, statusFilter, categoryFilter, sortBy, tags]);
+  }, [assets, allAccessories, search, statusFilter, categoryFilter, sortBy, tags]);
 
   return (
     <div className="px-4 pt-12 pb-4">
@@ -72,7 +79,7 @@ export default function AssetList() {
         />
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className={`px-3 py-2.5 rounded-xl text-sm border ${showFilters ? 'bg-[#111111] text-white border-[#111111]' : 'bg-white border-[#E5E5E5]'}`}
+          className={`px-3 py-2.5 rounded-xl text-sm border font-semibold ${showFilters ? 'choice-chip-selected' : 'bg-white border-[#E5E5E5]'}`}
         >
           筛选
         </button>
@@ -86,13 +93,13 @@ export default function AssetList() {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setStatusFilter('')}
-                className={`px-3 py-1 rounded-full text-xs ${!statusFilter ? 'bg-[#111111] text-white' : 'bg-[#F5F5F3]'}`}
+                className={`choice-chip px-3 py-1 rounded-full text-xs ${!statusFilter ? 'choice-chip-selected' : ''}`}
               >全部</button>
               {(Object.entries(STATUS_LABELS) as [AssetStatus, string][]).map(([k, v]) => (
                 <button
                   key={k}
                   onClick={() => setStatusFilter(k)}
-                  className={`px-3 py-1 rounded-full text-xs ${statusFilter === k ? 'bg-[#111111] text-white' : 'bg-[#F5F5F3]'}`}
+                  className={`choice-chip px-3 py-1 rounded-full text-xs ${statusFilter === k ? 'choice-chip-selected' : ''}`}
                 >{v}</button>
               ))}
             </div>
@@ -102,14 +109,14 @@ export default function AssetList() {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setCategoryFilter('')}
-                className={`px-3 py-1 rounded-full text-xs ${!categoryFilter ? 'bg-[#111111] text-white' : 'bg-[#F5F5F3]'}`}
+                className={`choice-chip px-3 py-1 rounded-full text-xs ${!categoryFilter ? 'choice-chip-selected' : ''}`}
               >全部</button>
               {categories.map(c => (
                 <button
                   key={c.id}
                   onClick={() => setCategoryFilter(c.id)}
-                  className={`px-3 py-1 rounded-full text-xs ${categoryFilter === c.id ? 'bg-[#111111] text-white' : 'bg-[#F5F5F3]'}`}
-                >{c.icon} {c.name}</button>
+                  className={`choice-chip px-3 py-1 rounded-full text-xs ${categoryFilter === c.id ? 'choice-chip-selected' : ''}`}
+                ><CategoryIcon category={c} /> {c.name}</button>
               ))}
             </div>
           </div>
@@ -120,11 +127,15 @@ export default function AssetList() {
                 { key: 'updatedAt' as SortKey, label: '最近更新' },
                 { key: 'purchaseDate' as SortKey, label: '购买日期' },
                 { key: 'purchasePrice' as SortKey, label: '价格' },
+                { key: 'dailyCost' as SortKey, label: '日均成本' },
+                { key: 'loss' as SortKey, label: '亏损' },
+                { key: 'usedDays' as SortKey, label: '使用天数' },
+                { key: 'retention' as SortKey, label: '保值率' },
               ].map(s => (
                 <button
                   key={s.key}
                   onClick={() => setSortBy(s.key)}
-                  className={`px-3 py-1 rounded-full text-xs ${sortBy === s.key ? 'bg-[#111111] text-white' : 'bg-[#F5F5F3]'}`}
+                  className={`choice-chip px-3 py-1 rounded-full text-xs ${sortBy === s.key ? 'choice-chip-selected' : ''}`}
                 >{s.label}</button>
               ))}
             </div>
@@ -138,14 +149,14 @@ export default function AssetList() {
           <AssetCard
             key={asset.id}
             asset={asset}
-            accessories={[]}
+            accessories={allAccessories.filter(acc => acc.assetId === asset.id)}
             categories={categories}
             onClick={() => navigate(`/assets/${asset.id}`)}
           />
         ))}
         {filtered.length === 0 && (
           <div className="text-center py-12 text-[#8E8E93]">
-            <div className="text-4xl mb-2">📦</div>
+            <div className="category-icon text-4xl mb-2 mx-auto"><span className="category-icon-fallback">剁</span></div>
             <div>{search ? '没有找到匹配的资产' : '还没有资产'}</div>
           </div>
         )}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useAssets } from '../hooks/useAssets';
+import { useAllAccessories, useAssets } from '../hooks/useAssets';
 import { useWishlist } from '../hooks/useWishlist';
 import { useCategories } from '../hooks/useSettings';
 import {
@@ -7,43 +7,45 @@ import {
   formatCurrency,
 } from '../utils/calculations';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import type { Asset } from '../types';
+import CategoryIcon from '../components/CategoryIcon';
 
-const COLORS = ['#111111', '#B7F23A', '#1890ff', '#ff4d4f', '#faad14', '#52c41a', '#722ed1', '#eb2f96', '#13c2c2', '#fa8c16'];
+const COLORS = ['#8A3B0A', '#A94F12', '#C96A19', '#DF8431', '#F0A14B', '#F6BC74', '#F8D3A5', '#FBE6CF'];
 
 type Tab = 'overview' | 'rankings' | 'category' | 'brand';
 
 export default function Stats() {
   const { assets } = useAssets();
+  const allAccessories = useAllAccessories();
   const { items: wishlistItems } = useWishlist();
   const { categories } = useCategories();
   const [tab, setTab] = useState<Tab>('overview');
 
-  const allAccessories = useMemo(() => [] as any[], []);
-
   const stats = useMemo(() => {
-    const totalInvested = assets.reduce((s, a) => s + getTotalCost(a, allAccessories), 0);
-    const totalValue = assets.reduce((s, a) => s + (a.status === 'sold' ? (a.soldPrice || 0) : a.currentValue), 0);
+    const totalInvested = assets.filter(a => !a.isExcludedFromTotal).reduce((s, a) => s + getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
+    const totalValue = assets.filter(a => a.status !== 'sold').reduce((s, a) => s + a.currentValue, 0);
     const totalRecovery = assets.filter(a => a.status === 'sold').reduce((s, a) => s + (a.soldPrice || 0), 0);
-    const netCost = totalInvested - totalRecovery;
-    const totalLoss = assets.reduce((s, a) => s + getLoss(a, allAccessories), 0);
-    const avgDaily = assets.filter(a => a.status === 'active').length > 0
-      ? assets.filter(a => a.status === 'active').reduce((s, a) => s + getDailyCost(a, allAccessories), 0) / assets.filter(a => a.status === 'active').length
+    const netCost = totalInvested - totalValue - totalRecovery;
+    const totalLoss = assets.reduce((s, a) => s + getLoss(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
+    const dailyAssets = assets.filter(a => a.status === 'active' && !a.isExcludedFromDailyAverage);
+    const avgDaily = dailyAssets.length > 0
+      ? dailyAssets.reduce((s, a) => s + getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0) / dailyAssets.length
       : 0;
 
     return { totalInvested, totalValue, totalRecovery, netCost, totalLoss, avgDaily, assetCount: assets.length, wishlistCount: wishlistItems.length };
   }, [assets, wishlistItems, allAccessories]);
 
   const rankings = useMemo(() => {
-    const sorted = (key: (a: any) => number, desc = true) =>
+    const sorted = (key: (a: Asset) => number, desc = true) =>
       [...assets].sort((a, b) => desc ? key(b) - key(a) : key(a) - key(b)).slice(0, 10);
 
     return {
-      mostExpensive: sorted(a => getTotalCost(a, allAccessories)),
-      highestDaily: sorted(a => a.status === 'active' ? getDailyCost(a, allAccessories) : 0),
-      lowestDaily: sorted(a => a.status === 'active' ? getDailyCost(a, allAccessories) : 0, false).filter(a => a.status === 'active'),
-      mostLoss: sorted(a => getLoss(a, allAccessories)),
-      bestRetention: sorted(a => getRetentionRate(a, allAccessories)),
-      mostIdle: sorted(a => a.status === 'idle' ? getUsedDays(a.lastUsedDate || a.purchaseDate) : 0),
+      mostExpensive: sorted(a => getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id))),
+      highestDaily: sorted(a => a.status === 'active' ? getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)) : 0),
+      lowestDaily: sorted(a => a.status === 'active' ? getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)) : 0, false).filter(a => a.status === 'active'),
+      mostLoss: sorted(a => getLoss(a, allAccessories.filter(acc => acc.assetId === a.id))),
+      bestRetention: sorted(a => getRetentionRate(a, allAccessories.filter(acc => acc.assetId === a.id))),
+      mostIdle: sorted(a => a.status === 'idle' ? getUsedDays(a) : 0),
     };
   }, [assets, allAccessories]);
 
@@ -52,11 +54,12 @@ export default function Stats() {
     assets.forEach(a => {
       const existing = map.get(a.categoryId) || { count: 0, invested: 0, value: 0, loss: 0, dailySum: 0, dailyCount: 0 };
       existing.count++;
-      existing.invested += getTotalCost(a, allAccessories);
+      const assetAccessories = allAccessories.filter(acc => acc.assetId === a.id);
+      existing.invested += getTotalCost(a, assetAccessories);
       existing.value += a.status === 'sold' ? (a.soldPrice || 0) : a.currentValue;
-      existing.loss += getLoss(a, allAccessories);
+      existing.loss += getLoss(a, assetAccessories);
       if (a.status === 'active') {
-        existing.dailySum += getDailyCost(a, allAccessories);
+        existing.dailySum += getDailyCost(a, assetAccessories);
         existing.dailyCount++;
       }
       map.set(a.categoryId, existing);
@@ -74,9 +77,10 @@ export default function Stats() {
       if (!a.brand) return;
       const existing = map.get(a.brand) || { count: 0, invested: 0, value: 0, loss: 0 };
       existing.count++;
-      existing.invested += getTotalCost(a, allAccessories);
+      const assetAccessories = allAccessories.filter(acc => acc.assetId === a.id);
+      existing.invested += getTotalCost(a, assetAccessories);
       existing.value += a.status === 'sold' ? (a.soldPrice || 0) : a.currentValue;
-      existing.loss += getLoss(a, allAccessories);
+      existing.loss += getLoss(a, assetAccessories);
       map.set(a.brand, existing);
     });
     return Array.from(map.entries()).map(([brand, data]) => ({ brand, ...data })).sort((a, b) => b.invested - a.invested);
@@ -95,12 +99,12 @@ export default function Stats() {
       <div className="grid grid-cols-2 gap-3 mb-4">
         <StatBox label="总投入" value={formatCurrency(stats.totalInvested)} />
         <StatBox label="当前估值" value={formatCurrency(stats.totalValue)} />
-        <StatBox label="累计回收" value={formatCurrency(stats.totalRecovery)} color="#52c41a" />
+        <StatBox label="累计回收" value={formatCurrency(stats.totalRecovery)} />
         <StatBox label="净消费" value={formatCurrency(stats.netCost)} />
         <StatBox label="资产数量" value={String(stats.assetCount)} />
         <StatBox label="心愿数量" value={String(stats.wishlistCount)} />
-        <StatBox label="平均日均" value={formatCurrency(stats.avgDaily)} color="#B7F23A" />
-        <StatBox label="总亏损" value={formatCurrency(stats.totalLoss)} color="#FF4D4F" />
+        <StatBox label="平均日均" value={formatCurrency(stats.avgDaily)} />
+        <StatBox label="总亏损" value={formatCurrency(stats.totalLoss)} />
       </div>
 
       {/* Tabs */}
@@ -112,7 +116,7 @@ export default function Stats() {
           { key: 'brand' as Tab, label: '品牌' },
         ]).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors ${tab === t.key ? 'bg-[#111111] text-white' : 'text-[#8E8E93]'}`}>
+            className={`flex-1 py-2 rounded-lg text-xs transition-colors ${tab === t.key ? 'segmented-tab-selected' : 'segmented-tab'}`}>
             {t.label}
           </button>
         ))}
@@ -140,11 +144,11 @@ export default function Stats() {
             <div className="bg-white rounded-2xl p-4 border border-[#E5E5E5] mb-4">
               <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">日均成本 Top10</h3>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={rankings.highestDaily.map(a => ({ name: a.name.slice(0, 6), daily: getDailyCost(a, allAccessories) }))}>
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
+                <BarChart data={rankings.highestDaily.map(a => ({ name: a.name.slice(0, 6), daily: getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))}>
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
                   <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
-                  <Bar dataKey="daily" fill="#111111" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="daily" fill="#C96A19" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -154,11 +158,11 @@ export default function Stats() {
             <div className="bg-white rounded-2xl p-4 border border-[#E5E5E5] mb-4">
               <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">亏损 Top10</h3>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={rankings.mostLoss.map(a => ({ name: a.name.slice(0, 6), loss: getLoss(a, allAccessories) }))}>
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
+                <BarChart data={rankings.mostLoss.map(a => ({ name: a.name.slice(0, 6), loss: getLoss(a, allAccessories.filter(acc => acc.assetId === a.id)) }))}>
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
                   <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
-                  <Bar dataKey="loss" fill="#FF4D4F" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="loss" fill="#F0A14B" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -168,11 +172,12 @@ export default function Stats() {
 
       {tab === 'rankings' && (
         <>
-          <RankingSection title="💸 最贵 Top10" items={rankings.mostExpensive} getValue={a => formatCurrency(getTotalCost(a, allAccessories))} />
-          <RankingSection title="📈 最高日均 Top10" items={rankings.highestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories))} />
-          <RankingSection title="📉 最低日均 Top10" items={rankings.lowestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories))} />
-          <RankingSection title="🔥 最大亏损 Top10" items={rankings.mostLoss} getValue={a => formatCurrency(getLoss(a, allAccessories))} />
-          <RankingSection title="💎 最保值 Top10" items={rankings.bestRetention} getValue={a => `${(getRetentionRate(a, allAccessories) * 100).toFixed(1)}%`} />
+          <RankingSection title="最贵 Top10" items={rankings.mostExpensive} getValue={a => formatCurrency(getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
+          <RankingSection title="最高日均 Top10" items={rankings.highestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
+          <RankingSection title="最低日均 Top10" items={rankings.lowestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
+          <RankingSection title="最大亏损 Top10" items={rankings.mostLoss} getValue={a => formatCurrency(getLoss(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
+          <RankingSection title="最保值 Top10" items={rankings.bestRetention} getValue={a => `${(getRetentionRate(a, allAccessories.filter(acc => acc.assetId === a.id)) * 100).toFixed(1)}%`} />
+          <RankingSection title="最闲置 Top10" items={rankings.mostIdle} getValue={a => `${getUsedDays(a)}天`} />
         </>
       )}
 
@@ -183,14 +188,14 @@ export default function Stats() {
             return (
               <div key={cs.categoryId} className="bg-white rounded-2xl p-4 border border-[#E5E5E5]">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">{cat?.icon}</span>
+                  <CategoryIcon category={cat} className="text-lg" />
                   <span className="font-semibold text-sm">{cat?.name}</span>
                   <span className="text-xs text-[#8E8E93]">{cs.count}个</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>投入: <span className="font-bold">{formatCurrency(cs.invested)}</span></div>
                   <div>估值: <span className="font-bold">{formatCurrency(cs.value)}</span></div>
-                  <div>亏损: <span className="font-bold text-[#FF4D4F]">{formatCurrency(cs.loss)}</span></div>
+                  <div>亏损: <span className="font-bold">{formatCurrency(cs.loss)}</span></div>
                   <div>均日: <span className="font-bold">{formatCurrency(cs.avgDaily)}</span></div>
                 </div>
               </div>
@@ -211,7 +216,7 @@ export default function Stats() {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>投入: <span className="font-bold">{formatCurrency(bs.invested)}</span></div>
                 <div>估值: <span className="font-bold">{formatCurrency(bs.value)}</span></div>
-                <div>亏损: <span className="font-bold text-[#FF4D4F]">{formatCurrency(bs.loss)}</span></div>
+                <div>亏损: <span className="font-bold">{formatCurrency(bs.loss)}</span></div>
               </div>
             </div>
           ))}
@@ -222,16 +227,16 @@ export default function Stats() {
   );
 }
 
-function StatBox({ label, value, color }: { label: string; value: string; color?: string }) {
+function StatBox({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-white rounded-xl p-3 border border-[#E5E5E5]">
       <div className="text-[10px] text-[#8E8E93] mb-1">{label}</div>
-      <div className="text-base font-bold" style={{ color: color || '#1D1D1F' }}>{value}</div>
+      <div className="text-base font-bold text-[#1D1D1F]">{value}</div>
     </div>
   );
 }
 
-function RankingSection({ title, items, getValue }: { title: string; items: any[]; getValue: (a: any) => string }) {
+function RankingSection({ title, items, getValue }: { title: string; items: Asset[]; getValue: (a: Asset) => string }) {
   if (items.length === 0) return null;
   return (
     <div className="bg-white rounded-2xl p-4 border border-[#E5E5E5] mb-3">

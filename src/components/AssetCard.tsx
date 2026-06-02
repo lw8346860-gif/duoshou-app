@@ -1,6 +1,7 @@
 import type { Asset, Accessory, Category } from '../types';
-import { STATUS_LABELS, STATUS_COLORS } from '../types';
+import { STATUS_LABELS } from '../types';
 import { calcUsedDays, calcTotalCost, calcDailyCost, calcNetCost, formatMoney, formatDays } from '../utils/calculations';
+import CategoryIcon from './CategoryIcon';
 
 interface AssetCardProps {
   asset: Asset;
@@ -24,7 +25,7 @@ export default function AssetCard({ asset, accessories, categories, onClick }: A
       <div className="flex items-start gap-3">
         {/* Icon */}
         <div className="w-12 h-12 rounded-xl bg-[#F5F5F3] flex items-center justify-center text-2xl shrink-0">
-          {cat?.icon || '📦'}
+          <CategoryIcon category={cat} />
         </div>
 
         {/* Info */}
@@ -32,12 +33,9 @@ export default function AssetCard({ asset, accessories, categories, onClick }: A
           <div className="flex items-center gap-2 mb-1">
             <span className="font-semibold text-[#1D1D1F] text-[15px] truncate">{asset.name}</span>
             <span
-              className="text-[11px] px-1.5 py-0.5 rounded-full shrink-0"
-              style={{
-                color: STATUS_COLORS[asset.status],
-                background: `${STATUS_COLORS[asset.status]}15`,
-              }}
+              className="status-pill text-[11px] px-1.5 py-0.5 rounded-full shrink-0 inline-flex items-center gap-1"
             >
+              <span className="status-dot" />
               {STATUS_LABELS[asset.status]}
             </span>
           </div>

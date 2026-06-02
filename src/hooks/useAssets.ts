@@ -1,4 +1,11 @@
-import { useAssets as useAssetsRaw, useAsset as useAssetRaw, useAssetAccessories as useAssetAccessoriesRaw, useAssetMutations, useAccessoryMutations } from './useLiveQuery';
+import {
+  useAssets as useAssetsRaw,
+  useAsset as useAssetRaw,
+  useAccessories as useAccessoriesRaw,
+  useAssetAccessories as useAssetAccessoriesRaw,
+  useAssetMutations,
+  useAccessoryMutations,
+} from './useLiveQuery';
 
 export function useAssets() {
   const assets = useAssetsRaw();
@@ -11,6 +18,10 @@ export function useAsset(id: string | undefined) {
 
 export function useAccessories(assetId?: string) {
   return useAssetAccessoriesRaw(assetId);
+}
+
+export function useAllAccessories() {
+  return useAccessoriesRaw();
 }
 
 export { useAssetMutations, useAccessoryMutations };

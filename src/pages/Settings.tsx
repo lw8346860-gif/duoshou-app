@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSettings, useSettingsMutations, useCategories, useCategoryMutations, useTags, useTagMutations, useBackup, useSnapshots } from '../hooks/useLiveQuery';
 import { v4 as uuidv4 } from 'uuid';
+import CategoryIcon from '../components/CategoryIcon';
 
 export default function Settings() {
+  const navigate = useNavigate();
   const settings = useSettings();
   const { update: updateSettings } = useSettingsMutations();
   const categories = useCategories();
@@ -14,10 +17,10 @@ export default function Settings() {
 
   const [showCatForm, setShowCatForm] = useState(false);
   const [newCatName, setNewCatName] = useState('');
-  const [newCatIcon, setNewCatIcon] = useState('📦');
+  const [newCatIcon, setNewCatIcon] = useState('custom');
   const [showTagForm, setShowTagForm] = useState(false);
   const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#1890ff');
+  const [newTagColor, setNewTagColor] = useState('#D97706');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // 初始化默认数据
@@ -36,7 +39,7 @@ export default function Settings() {
       order: categories.length,
     });
     setNewCatName('');
-    setNewCatIcon('📦');
+    setNewCatIcon('custom');
     setShowCatForm(false);
   };
 
@@ -145,6 +148,29 @@ export default function Settings() {
             <option value="years">年</option>
           </select>
         </div>
+        <div>
+          <label className="text-xs text-[#8E8E93]">显示模式</label>
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {[
+              { key: 'light' as const, label: '白天' },
+              { key: 'dark' as const, label: '黑夜' },
+              { key: 'system' as const, label: '跟随' },
+            ].map(option => {
+              const active = (settings?.themeMode ?? settings?.theme ?? 'light') === option.key;
+              return (
+                <button
+                  key={option.key}
+                  onClick={() => updateSettings({ theme: option.key, themeMode: option.key })}
+                  className={`py-2.5 rounded-xl text-sm font-bold border ${
+                    active ? 'btn-primary' : 'btn-secondary'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       {/* 分类管理 */}
@@ -153,7 +179,7 @@ export default function Settings() {
           <h2 className="text-sm font-semibold text-[#1D1D1F]">分类管理</h2>
           <button
             onClick={() => setShowCatForm(!showCatForm)}
-            className="text-xs text-[#B7F23A] font-semibold"
+            className="text-xs text-[#1D1D1F] font-semibold"
           >
             + 添加
           </button>
@@ -172,7 +198,7 @@ export default function Settings() {
               onChange={e => setNewCatName(e.target.value)}
               className="flex-1 bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none"
             />
-            <button onClick={handleAddCategory} className="bg-[#111111] text-white px-3 py-2 rounded-xl text-xs">
+            <button onClick={handleAddCategory} className="btn-primary px-3 py-2 rounded-xl text-xs">
               添加
             </button>
           </div>
@@ -180,8 +206,11 @@ export default function Settings() {
         <div className="space-y-1 max-h-60 overflow-y-auto">
           {categories.map(cat => (
             <div key={cat.id} className="flex items-center justify-between py-1.5">
-              <span className="text-sm text-[#1D1D1F]">{cat.icon} {cat.name}</span>
-              <button onClick={() => removeCat(cat.id)} className="text-[#FF4D4F] text-xs">删除</button>
+              <span className="text-sm text-[#1D1D1F] inline-flex items-center gap-2">
+                <CategoryIcon category={cat} />
+                {cat.name}
+              </span>
+              <button onClick={() => removeCat(cat.id)} className="text-[#1D1D1F] text-xs">删除</button>
             </div>
           ))}
         </div>
@@ -193,7 +222,7 @@ export default function Settings() {
           <h2 className="text-sm font-semibold text-[#1D1D1F]">标签管理</h2>
           <button
             onClick={() => setShowTagForm(!showTagForm)}
-            className="text-xs text-[#B7F23A] font-semibold"
+            className="text-xs text-[#1D1D1F] font-semibold"
           >
             + 添加
           </button>
@@ -212,7 +241,7 @@ export default function Settings() {
               onChange={e => setNewTagName(e.target.value)}
               className="flex-1 bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none"
             />
-            <button onClick={handleAddTag} className="bg-[#111111] text-white px-3 py-2 rounded-xl text-xs">
+            <button onClick={handleAddTag} className="btn-primary px-3 py-2 rounded-xl text-xs">
               添加
             </button>
           </div>
@@ -221,9 +250,10 @@ export default function Settings() {
           {tags.map(tag => (
             <span
               key={tag.id}
-              className="px-2 py-1 rounded-full text-xs flex items-center gap-1"
-              style={{ backgroundColor: tag.color + '20', color: tag.color }}
+              className="tag-chip px-2 py-1 rounded-full text-xs flex items-center gap-1"
+              style={{ borderColor: `${tag.color}66` }}
             >
+              <span className="tag-color-dot" style={{ backgroundColor: tag.color }} />
               {tag.name}
               <button onClick={() => removeTag(tag.id)} className="ml-1 opacity-60 hover:opacity-100">×</button>
             </span>
@@ -234,16 +264,22 @@ export default function Settings() {
       {/* 数据管理 */}
       <section className="bg-white rounded-2xl p-4 space-y-3">
         <h2 className="text-sm font-semibold text-[#1D1D1F]">数据管理</h2>
+        <button
+          onClick={() => navigate('/settings/backup')}
+          className="w-full btn-primary py-3.5 rounded-xl text-base"
+        >
+          备份与恢复
+        </button>
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={handleExport}
-            className="bg-[#111111] text-white py-2.5 rounded-xl text-sm font-medium"
+            className="btn-accent py-3.5 rounded-xl text-sm"
           >
             导出备份
           </button>
           <button
             onClick={handleImport}
-            className="bg-[#F5F5F3] text-[#1D1D1F] py-2.5 rounded-xl text-sm font-medium"
+            className="btn-primary py-3.5 rounded-xl text-sm"
           >
             导入恢复
           </button>
@@ -267,13 +303,13 @@ export default function Settings() {
                           restoreSnapshot(snap.id);
                         }
                       }}
-                      className="text-[#1890ff] text-xs px-2 py-1"
+                      className="text-[#1D1D1F] text-xs px-2 py-1"
                     >
                       恢复
                     </button>
                     <button
                       onClick={() => deleteSnapshot(snap.id)}
-                      className="text-[#FF4D4F] text-xs px-2 py-1"
+                      className="text-[#1D1D1F] text-xs px-2 py-1"
                     >
                       删除
                     </button>
@@ -295,7 +331,7 @@ export default function Settings() {
         {/* 清空数据 */}
         {showClearConfirm ? (
           <div className="bg-red-50 rounded-xl p-3 text-center space-y-2">
-            <div className="text-sm text-[#FF4D4F]">确定清空所有资产数据？</div>
+            <div className="text-sm text-[#1D1D1F]">确定清空所有资产数据？</div>
             <div className="text-xs text-[#8E8E93]">将自动创建备份，但清空后需手动恢复</div>
             <div className="flex gap-2 justify-center">
               <button onClick={() => setShowClearConfirm(false)} className="px-4 py-2 rounded-xl text-sm bg-gray-100">
@@ -309,7 +345,7 @@ export default function Settings() {
         ) : (
           <button
             onClick={() => setShowClearConfirm(true)}
-            className="w-full py-2.5 rounded-xl text-sm text-[#FF4D4F] bg-red-50"
+            className="w-full py-2.5 rounded-xl text-sm text-[#1D1D1F] bg-red-50"
           >
             清空所有数据
           </button>
@@ -319,9 +355,12 @@ export default function Settings() {
       {/* 关于 */}
       <section className="bg-white rounded-2xl p-4 text-center">
         <div className="text-lg font-bold text-[#1D1D1F]">剁手</div>
-        <div className="text-xs text-[#8E8E93] mt-1">v1.0.0</div>
+        <div className="text-xs text-[#8E8E93] mt-1">v1.0.3</div>
         <div className="text-xs text-[#8E8E93] mt-2">买的时候冲动，以后慢慢算账</div>
         <div className="text-[10px] text-[#8E8E93] mt-2">所有数据存储在本地，零服务器、零账号</div>
+        <button onClick={() => navigate('/about')} className="mt-3 text-xs text-[#1D1D1F] font-semibold">
+          查看关于
+        </button>
       </section>
     </div>
   );

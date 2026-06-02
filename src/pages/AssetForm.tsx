@@ -4,6 +4,8 @@ import { useAsset, useAssetMutations, useAssetAccessories, useAccessoryMutations
 import { v4 as uuidv4 } from 'uuid';
 import type { Asset, Accessory, AssetStatus, LuxuryInfo, CarInfo, SubscriptionInfo } from '../types';
 import { LUXURY_CATEGORIES, CAR_CATEGORY, SUBSCRIPTION_CATEGORY, ACCESSORY_TYPE_LABELS } from '../types';
+import { calcUsedDays, formatMoney } from '../utils/calculations';
+import CategoryIcon from '../components/CategoryIcon';
 
 type FormData = Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -12,7 +14,7 @@ const emptyForm: FormData = {
   brand: '',
   model: '',
   spec: '',
-  categoryId: '',
+  categoryId: 'cat-other',
   tagIds: [],
   purchasePrice: 0,
   currency: 'CNY',
@@ -54,10 +56,16 @@ export default function AssetForm() {
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [newAccessory, setNewAccessory] = useState({ name: '', price: 0, type: 'accessory' as keyof typeof ACCESSORY_TYPE_LABELS, includedInCost: true });
   const [saving, setSaving] = useState(false);
+  const [today] = useState(() => new Date());
 
   useEffect(() => {
     if (existingAsset) {
       const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = existingAsset;
+      void _id;
+      void _c;
+      void _u;
+      // Existing records are loaded from IndexedDB and mirrored into the editable form state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(rest);
       setAccessories(existingAccessories);
     }
@@ -70,6 +78,15 @@ export default function AssetForm() {
   const isLuxury = LUXURY_CATEGORIES.includes(form.categoryId);
   const isCar = form.categoryId === CAR_CATEGORY;
   const isSubscription = form.categoryId === SUBSCRIPTION_CATEGORY;
+  const includedAccessoryCost = accessories.filter(acc => acc.includedInCost).reduce((sum, acc) => sum + acc.price, 0);
+  const expectedNetCost = Math.max(0, form.purchasePrice + includedAccessoryCost - form.expectedResidualValue);
+  const impliedDailyCost = form.targetUseDays > 0 ? expectedNetCost / form.targetUseDays : 0;
+  const usedDays = calcUsedDays(form.purchaseDate);
+  const requiredTargetDays = form.targetDailyCost > 0 ? Math.ceil(expectedNetCost / form.targetDailyCost) : 0;
+  const remainingTargetDays = Math.max(0, requiredTargetDays - usedDays);
+  const estimatedTargetDate = remainingTargetDays > 0
+    ? new Date(today.getTime() + remainingTargetDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    : '';
 
   const handleAddAccessory = () => {
     if (!newAccessory.name || newAccessory.price <= 0) return;
@@ -93,6 +110,11 @@ export default function AssetForm() {
 
   const handleSave = async () => {
     if (!form.name.trim()) return;
+    if (form.purchasePrice < 0 || !form.purchaseDate || !form.categoryId) return;
+    if (form.targetDailyCost < 0) return;
+    if (form.status === 'sold' && (!form.soldDate || form.soldPrice == null || form.soldPrice < 0)) return;
+    if (form.status === 'sold' && form.soldDate && form.soldDate < form.purchaseDate) return;
+    if (form.status === 'retired' && form.retiredDate && form.retiredDate < form.purchaseDate) return;
     setSaving(true);
     try {
       if (id && existingAsset) {
@@ -137,7 +159,7 @@ export default function AssetForm() {
       carBrand: '', carModel: '', modelYear: '', mileage: 0,
       energyType: 'fuel' as const, purchaseType: 'new' as const,
       insuranceExpiry: '', inspectionExpiry: '', licensePlate: '',
-      loanInfo: '',
+      hasLoan: false, monthlyPayment: 0, loanBalance: 0, loanInfo: '',
     };
     updateForm('carInfo', { ...info, [key]: value });
   };
@@ -150,6 +172,19 @@ export default function AssetForm() {
     updateForm('subscriptionInfo', { ...info, [key]: value });
   };
 
+  const updatePostmortem = (changes: Partial<NonNullable<FormData['postmortem']>>) => {
+    updateForm('postmortem', {
+      wouldBuyAgain: form.postmortem?.wouldBuyAgain ?? '',
+      biggestMistake: form.postmortem?.biggestMistake ?? '',
+      worthIt: form.postmortem?.worthIt ?? '',
+      finalVerdict: form.postmortem?.finalVerdict ?? form.postmortem?.worthIt ?? '',
+      advice: form.postmortem?.advice ?? '',
+      adviceToPastSelf: form.postmortem?.adviceToPastSelf ?? form.postmortem?.advice ?? '',
+      satisfaction: form.postmortem?.satisfaction ?? null,
+      ...changes,
+    });
+  };
+
   return (
     <div className="space-y-4 pb-8">
       {/* 顶部导航 */}
@@ -159,7 +194,7 @@ export default function AssetForm() {
         <button
           onClick={handleSave}
           disabled={saving || !form.name.trim()}
-          className="text-sm font-semibold text-[#B7F23A] disabled:opacity-40"
+          className="btn-primary px-5 py-2.5 rounded-xl text-sm disabled:opacity-40 disabled:shadow-none"
         >
           {saving ? '保存中...' : '保存'}
         </button>
@@ -258,13 +293,11 @@ export default function AssetForm() {
               <button
                 key={cat.id}
                 onClick={() => updateForm('categoryId', cat.id)}
-                className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
-                  form.categoryId === cat.id
-                    ? 'bg-[#111111] text-white'
-                    : 'bg-[#F5F5F3] text-[#1D1D1F]'
+                className={`choice-chip px-3 py-1.5 rounded-full text-xs transition-colors ${
+                  form.categoryId === cat.id ? 'choice-chip-selected' : ''
                 }`}
               >
-                {cat.icon} {cat.name}
+                <CategoryIcon category={cat} /> {cat.name}
               </button>
             ))}
           </div>
@@ -283,14 +316,9 @@ export default function AssetForm() {
                       : [...form.tagIds, tag.id]
                     );
                   }}
-                  className="px-3 py-1.5 rounded-full text-xs transition-colors"
-                  style={{
-                    backgroundColor: selected ? tag.color + '30' : '#F5F5F3',
-                    color: selected ? tag.color : '#1D1D1F',
-                    borderWidth: selected ? 1 : 0,
-                    borderColor: tag.color + '50',
-                  }}
+                  className={`tag-chip px-3 py-1.5 rounded-full text-xs transition-colors inline-flex items-center gap-1.5 ${selected ? 'tag-chip-selected' : ''}`}
                 >
+                  <span className="tag-color-dot" style={{ backgroundColor: tag.color }} />
                   {tag.name}
                 </button>
               );
@@ -344,6 +372,40 @@ export default function AssetForm() {
             />
           </div>
         </div>
+        <div className="surface-ink rounded-2xl p-4">
+          <div className="text-xs text-white/60 mb-3">目标测算</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-[10px] text-white/50">按预期周期</div>
+              <div className="text-lg font-bold">
+                {form.targetUseDays > 0 ? `${formatMoney(impliedDailyCost, form.currency)}/天` : '填使用天数'}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] text-white/50">按目标日均</div>
+              <div className="text-lg font-bold">
+                {form.targetDailyCost > 0 ? `${requiredTargetDays} 天` : '填日均目标'}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 border-t border-white/10 pt-3">
+            <div>
+              <div className="text-[10px] text-white/50">当前净成本</div>
+              <div className="text-sm font-semibold">{formatMoney(expectedNetCost, form.currency)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-white/50">还需使用</div>
+              <div className="text-sm font-semibold">
+                {form.targetDailyCost > 0 ? (remainingTargetDays <= 0 ? '已达标' : `${remainingTargetDays} 天`) : '-'}
+              </div>
+            </div>
+          </div>
+          {estimatedTargetDate && (
+            <div className="mt-3 rounded-xl bg-white/10 px-3 py-2 text-xs">
+              如果目标日均为 {formatMoney(form.targetDailyCost, form.currency)}/天，预计需要用到 {estimatedTargetDate}。
+            </div>
+          )}
+        </div>
       </section>
 
       {/* 模块5: 使用状态 */}
@@ -354,8 +416,8 @@ export default function AssetForm() {
             <button
               key={s}
               onClick={() => updateForm('status', s)}
-              className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
-                form.status === s ? 'bg-[#111111] text-white' : 'bg-[#F5F5F3] text-[#1D1D1F]'
+              className={`choice-chip px-3 py-1.5 rounded-full text-xs transition-colors ${
+                form.status === s ? 'choice-chip-selected' : ''
               }`}
             >
               {s === 'active' ? '服役中' : s === 'idle' ? '闲置' : s === 'retired' ? '已退役' : s === 'sold' ? '已卖出' : '已丢弃'}
@@ -392,6 +454,28 @@ export default function AssetForm() {
             </div>
           </div>
         )}
+        {form.status === 'retired' && (
+          <div>
+            <label className="text-xs text-[#8E8E93]">退役日期</label>
+            <input
+              type="date"
+              value={form.retiredDate ?? ''}
+              onChange={e => updateForm('retiredDate', e.target.value || null)}
+              className="w-full bg-[#F5F5F3] rounded-xl px-4 py-2.5 text-sm outline-none mt-1"
+            />
+          </div>
+        )}
+        {form.status === 'discarded' && (
+          <div>
+            <label className="text-xs text-[#8E8E93]">丢弃日期</label>
+            <input
+              type="date"
+              value={form.discardedDate ?? ''}
+              onChange={e => updateForm('discardedDate', e.target.value || null)}
+              className="w-full bg-[#F5F5F3] rounded-xl px-4 py-2.5 text-sm outline-none mt-1"
+            />
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -425,7 +509,7 @@ export default function AssetForm() {
                 {ACCESSORY_TYPE_LABELS[acc.type]} · ¥{acc.price} · {acc.includedInCost ? '计入成本' : '不计入'}
               </div>
             </div>
-            <button onClick={() => handleRemoveAccessory(acc.id)} className="text-[#FF4D4F] text-sm">删除</button>
+            <button onClick={() => handleRemoveAccessory(acc.id)} className="text-[#1D1D1F] text-sm">删除</button>
           </div>
         ))}
         <div className="flex gap-2">
@@ -444,7 +528,7 @@ export default function AssetForm() {
           />
           <button
             onClick={handleAddAccessory}
-            className="bg-[#111111] text-white px-3 py-2 rounded-xl text-xs"
+            className="btn-primary px-3 py-2 rounded-xl text-xs"
           >
             添加
           </button>
@@ -463,7 +547,7 @@ export default function AssetForm() {
       {/* 模块7: 扩展字段 */}
       {isLuxury && (
         <section className="bg-white rounded-2xl p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-[#1D1D1F]">💎 奢侈品信息</h2>
+          <h2 className="text-sm font-semibold text-[#1D1D1F]">奢侈品信息</h2>
           <div className="grid grid-cols-2 gap-2">
             <input placeholder="成色" value={form.luxuryInfo?.condition ?? ''} onChange={e => updateLuxury('condition', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
             <input placeholder="材质" value={form.luxuryInfo?.material ?? ''} onChange={e => updateLuxury('material', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
@@ -495,26 +579,34 @@ export default function AssetForm() {
 
       {isCar && (
         <section className="bg-white rounded-2xl p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-[#1D1D1F]">🚗 汽车信息</h2>
+          <h2 className="text-sm font-semibold text-[#1D1D1F]">汽车信息</h2>
           <div className="grid grid-cols-2 gap-2">
             <input placeholder="品牌" value={form.carInfo?.carBrand ?? ''} onChange={e => updateCar('carBrand', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
             <input placeholder="车型" value={form.carInfo?.carModel ?? ''} onChange={e => updateCar('carModel', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
             <input placeholder="年款" value={form.carInfo?.modelYear ?? ''} onChange={e => updateCar('modelYear', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
             <input type="number" placeholder="里程(km)" value={form.carInfo?.mileage ?? ''} onChange={e => updateCar('mileage', Number(e.target.value))} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
             <input placeholder="车牌" value={form.carInfo?.licensePlate ?? ''} onChange={e => updateCar('licensePlate', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
+            <input type="date" value={form.carInfo?.insuranceExpiry ?? ''} onChange={e => updateCar('insuranceExpiry', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
+            <input type="date" value={form.carInfo?.inspectionExpiry ?? ''} onChange={e => updateCar('inspectionExpiry', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
             <select value={form.carInfo?.energyType ?? 'fuel'} onChange={e => updateCar('energyType', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none">
               <option value="fuel">燃油</option>
               <option value="electric">纯电</option>
               <option value="hybrid">混动</option>
               <option value="range-extended">增程</option>
             </select>
+            <select value={form.carInfo?.purchaseType ?? 'new'} onChange={e => updateCar('purchaseType', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none">
+              <option value="new">新车</option>
+              <option value="used">二手车</option>
+            </select>
+            <input type="number" placeholder="月供" value={form.carInfo?.monthlyPayment || ''} onChange={e => updateCar('monthlyPayment', Number(e.target.value))} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
+            <input type="number" placeholder="贷款余额" value={form.carInfo?.loanBalance || ''} onChange={e => updateCar('loanBalance', Number(e.target.value))} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
           </div>
         </section>
       )}
 
       {isSubscription && (
         <section className="bg-white rounded-2xl p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-[#1D1D1F]">💳 订阅信息</h2>
+          <h2 className="text-sm font-semibold text-[#1D1D1F]">订阅信息</h2>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-[#8E8E93]">开始日期</label>
@@ -534,7 +626,55 @@ export default function AssetForm() {
               <input type="checkbox" checked={form.subscriptionInfo?.autoRenew ?? false} onChange={e => updateSubscription('autoRenew', e.target.checked)} />
               <span className="text-xs text-[#8E8E93]">自动续费</span>
             </div>
+            <input type="number" placeholder="续费金额" value={form.subscriptionInfo?.renewPrice || ''} onChange={e => updateSubscription('renewPrice', Number(e.target.value))} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
+            <input placeholder="续费周期" value={form.subscriptionInfo?.renewCycle ?? ''} onChange={e => updateSubscription('renewCycle', e.target.value)} className="bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none" />
           </div>
+        </section>
+      )}
+
+      {(form.status === 'sold' || form.status === 'retired' || form.status === 'discarded') && (
+        <section className="bg-white rounded-2xl p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-[#1D1D1F]">消费复盘</h2>
+          <textarea
+            placeholder="如果重来一次，你还会买吗？"
+            value={form.postmortem?.wouldBuyAgain ?? ''}
+            onChange={e => updatePostmortem({ wouldBuyAgain: e.target.value })}
+            rows={2}
+            className="w-full bg-[#F5F5F3] rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
+          />
+          <textarea
+            placeholder="这次购买最大的错误是什么？"
+            value={form.postmortem?.biggestMistake ?? ''}
+            onChange={e => updatePostmortem({ biggestMistake: e.target.value })}
+            rows={2}
+            className="w-full bg-[#F5F5F3] rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
+          />
+          <textarea
+            placeholder="这件东西最终值不值？"
+            value={form.postmortem?.finalVerdict ?? form.postmortem?.worthIt ?? ''}
+            onChange={e => updatePostmortem({ finalVerdict: e.target.value, worthIt: e.target.value })}
+            rows={2}
+            className="w-full bg-[#F5F5F3] rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
+          />
+          <textarea
+            placeholder="给当时的自己一句建议"
+            value={form.postmortem?.adviceToPastSelf ?? form.postmortem?.advice ?? ''}
+            onChange={e => updatePostmortem({ adviceToPastSelf: e.target.value, advice: e.target.value })}
+            rows={2}
+            className="w-full bg-[#F5F5F3] rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
+          />
+          <select
+            value={form.postmortem?.satisfaction ?? ''}
+            onChange={e => updatePostmortem({ satisfaction: e.target.value ? Number(e.target.value) : null })}
+            className="w-full bg-[#F5F5F3] rounded-xl px-4 py-2.5 text-sm outline-none"
+          >
+            <option value="">满意度评分</option>
+            <option value="1">1 分</option>
+            <option value="2">2 分</option>
+            <option value="3">3 分</option>
+            <option value="4">4 分</option>
+            <option value="5">5 分</option>
+          </select>
         </section>
       )}
 
@@ -555,6 +695,16 @@ export default function AssetForm() {
           className="w-full bg-[#F5F5F3] rounded-xl px-4 py-2.5 text-sm outline-none"
         />
       </section>
+
+      <div className="form-action-bar sticky bottom-20 z-30 -mx-1 rounded-2xl p-2 backdrop-blur">
+        <button
+          onClick={handleSave}
+          disabled={saving || !form.name.trim()}
+          className="btn-accent w-full rounded-2xl py-4 text-base disabled:opacity-40 disabled:shadow-none"
+        >
+          {saving ? '保存中...' : '保存资产'}
+        </button>
+      </div>
     </div>
   );
 }

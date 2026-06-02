@@ -38,6 +38,9 @@ export interface CarInfo {
   insuranceExpiry: string;
   inspectionExpiry: string;
   licensePlate: string;
+  hasLoan: boolean;
+  monthlyPayment: number;
+  loanBalance: number;
   loanInfo: string;
 }
 
@@ -52,11 +55,13 @@ export interface SubscriptionInfo {
 }
 
 export interface Postmortem {
-  wouldBuyAgain: string;
+  wouldBuyAgain: string | null;
   biggestMistake: string;
   worthIt: string;
   advice: string;
-  satisfaction: number; // 1-5
+  finalVerdict: string;
+  adviceToPastSelf: string;
+  satisfaction: number | null; // 1-5
 }
 
 export interface Asset {
@@ -104,6 +109,8 @@ export interface Accessory {
   type: AccessoryType;
   includedInCost: boolean;
   note: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface WishlistItem {
@@ -132,7 +139,9 @@ export interface UsageRecord {
   id: string;
   assetId: string;
   date: string;
+  usedAt?: string;
   note: string;
+  createdAt?: string;
 }
 
 export interface Category {
@@ -140,12 +149,19 @@ export interface Category {
   name: string;
   icon: string;
   order: number;
+  sortOrder?: number;
+  isDefault?: boolean;
+  isHidden?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Tag {
   id: string;
   name: string;
   color: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Settings {
@@ -155,6 +171,13 @@ export interface Settings {
   thousandsSeparator: boolean;
   durationDisplay: 'days' | 'months' | 'years' | 'auto';
   theme: 'light' | 'dark' | 'system';
+  useThousandsSeparator?: boolean;
+  durationDisplayMode?: 'days' | 'date' | 'daysAndDate';
+  themeMode?: 'light' | 'dark' | 'system';
+  backupVersion?: number;
+  homeSortMode?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Snapshot {
@@ -166,10 +189,12 @@ export interface Snapshot {
 
 export interface BackupData {
   appName: string;
+  displayName?: string;
   schemaVersion: number;
   exportedAt: string;
   assets: Asset[];
   accessories: Accessory[];
+  wishlist?: WishlistItem[];
   wishlistItems: WishlistItem[];
   usageRecords: UsageRecord[];
   categories: Category[];
@@ -178,24 +203,24 @@ export interface BackupData {
 }
 
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-digital', name: '数码', icon: '📱', order: 0 },
-  { id: 'cat-car', name: '汽车', icon: '🚗', order: 1 },
-  { id: 'cat-luxury', name: '奢侈品', icon: '💎', order: 2 },
-  { id: 'cat-watch', name: '腕表', icon: '⌚', order: 3 },
-  { id: 'cat-bag', name: '包袋', icon: '👜', order: 4 },
-  { id: 'cat-jewelry', name: '珠宝', icon: '💍', order: 5 },
-  { id: 'cat-clothing', name: '服饰', icon: '👔', order: 6 },
-  { id: 'cat-shoes', name: '鞋履', icon: '👟', order: 7 },
-  { id: 'cat-camera', name: '摄影', icon: '📷', order: 8 },
-  { id: 'cat-gaming', name: '游戏', icon: '🎮', order: 9 },
-  { id: 'cat-appliance', name: '家电', icon: '🏠', order: 10 },
-  { id: 'cat-furniture', name: '家具', icon: '🪑', order: 11 },
-  { id: 'cat-subscription', name: '会员订阅', icon: '💳', order: 12 },
-  { id: 'cat-collectible', name: '收藏', icon: '🏺', order: 13 },
-  { id: 'cat-tool', name: '工具', icon: '🔧', order: 14 },
-  { id: 'cat-office', name: '办公', icon: '💼', order: 15 },
-  { id: 'cat-sports', name: '运动', icon: '⚽', order: 16 },
-  { id: 'cat-other', name: '其他', icon: '📦', order: 17 },
+  { id: 'cat-digital', name: '数码', icon: 'digital', order: 0 },
+  { id: 'cat-car', name: '汽车', icon: 'car', order: 1 },
+  { id: 'cat-luxury', name: '奢侈品', icon: 'luxury', order: 2 },
+  { id: 'cat-watch', name: '腕表', icon: 'watch', order: 3 },
+  { id: 'cat-bag', name: '包袋', icon: 'bag', order: 4 },
+  { id: 'cat-jewelry', name: '珠宝', icon: 'jewelry', order: 5 },
+  { id: 'cat-clothing', name: '服饰', icon: 'clothing', order: 6 },
+  { id: 'cat-shoes', name: '鞋履', icon: 'shoes', order: 7 },
+  { id: 'cat-camera', name: '摄影', icon: 'camera', order: 8 },
+  { id: 'cat-gaming', name: '游戏', icon: 'gaming', order: 9 },
+  { id: 'cat-appliance', name: '家电', icon: 'appliance', order: 10 },
+  { id: 'cat-furniture', name: '家具', icon: 'furniture', order: 11 },
+  { id: 'cat-subscription', name: '会员订阅', icon: 'subscription', order: 12 },
+  { id: 'cat-collectible', name: '收藏', icon: 'collectible', order: 13 },
+  { id: 'cat-tool', name: '工具', icon: 'tool', order: 14 },
+  { id: 'cat-office', name: '办公', icon: 'office', order: 15 },
+  { id: 'cat-sports', name: '运动', icon: 'sports', order: 16 },
+  { id: 'cat-other', name: '其他', icon: 'other', order: 17 },
 ];
 
 export const DEFAULT_TAGS: Tag[] = [
@@ -227,14 +252,6 @@ export const STATUS_LABELS: Record<AssetStatus, string> = {
   retired: '已退役',
   sold: '已卖出',
   discarded: '已丢弃',
-};
-
-export const STATUS_COLORS: Record<AssetStatus, string> = {
-  active: '#52c41a',
-  idle: '#faad14',
-  retired: '#8c8c8c',
-  sold: '#1890ff',
-  discarded: '#ff4d4f',
 };
 
 export const ACCESSORY_TYPE_LABELS: Record<AccessoryType, string> = {

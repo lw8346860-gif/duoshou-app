@@ -1,11 +1,17 @@
-import { differenceInDays } from 'date-fns';
+import { addDays, differenceInCalendarDays, differenceInDays, format } from 'date-fns';
 import type { Asset, Accessory } from '../types';
 
 /** 已使用天数 = today - purchaseDate + 1（最小1） */
 export function calcUsedDays(purchaseDate: string): number {
   if (!purchaseDate) return 1;
-  const days = differenceInDays(new Date(), new Date(purchaseDate)) + 1;
-  return Math.max(1, days);
+  const days = differenceInCalendarDays(new Date(), new Date(`${purchaseDate}T00:00:00`)) + 1;
+  return Math.max(0, days);
+}
+
+export function calcDateSpanDays(startDate: string, endDate: string | null | undefined): number {
+  if (!startDate || !endDate) return calcUsedDays(startDate);
+  const days = differenceInCalendarDays(new Date(`${endDate}T00:00:00`), new Date(`${startDate}T00:00:00`)) + 1;
+  return Math.max(0, days);
 }
 
 /** 总成本 = purchasePrice + Σ(includedInCost accessories) */
@@ -62,6 +68,11 @@ export function calcRemainingDays(targetDays: number, usedDays: number): number 
   return Math.max(0, targetDays - usedDays);
 }
 
+export function calcEstimatedTargetDate(remainingDays: number): string | null {
+  if (remainingDays <= 0) return null;
+  return format(addDays(new Date(), remainingDays), 'yyyy-MM-dd');
+}
+
 /** 心愿天数 = (expectedPrice - expectedResidualValue) / targetDailyCost */
 export function calcWishlistDays(expectedPrice: number, expectedResidualValue: number, targetDailyCost: number): number {
   if (targetDailyCost <= 0) return 0;
@@ -71,20 +82,17 @@ export function calcWishlistDays(expectedPrice: number, expectedResidualValue: n
 
 /** 冲动等级：<3天=危险，3-14天=观察，15-30天=冷静中，>30天=冷静。价格>5000提一级 */
 export function calcImpulseLevel(cooldownDays: number, price: number): string {
-  let level: string;
-  if (cooldownDays < 3) level = '危险';
-  else if (cooldownDays < 15) level = '观察';
-  else if (cooldownDays < 31) level = '冷静中';
-  else level = '冷静';
+  const levels = ['冷静', '观察', '危险', '马上剁手'];
+  let index: number;
+  if (cooldownDays < 3) index = 2;
+  else if (cooldownDays < 15) index = 1;
+  else if (cooldownDays < 31) index = 0;
+  else index = 0;
 
-  // 价格>5000 提一级
   if (price > 5000) {
-    if (level === '冷静') level = '非常冷静';
-    else if (level === '冷静中') level = '冷静';
-    else if (level === '观察') level = '冷静中';
-    else if (level === '危险') level = '观察';
+    index += 1;
   }
-  return level;
+  return levels[Math.min(levels.length - 1, index)];
 }
 
 /** 格式化金额（formatCurrency alias） */
@@ -125,10 +133,15 @@ export function getTotalCost(asset: Asset, accessories: Accessory[]): number {
 
 /** getDailyCost alias */
 export function getDailyCost(asset: Asset, accessories: Accessory[]): number {
-  const usedDays = calcUsedDays(asset.purchaseDate);
   const totalCost = calcTotalCost(asset, accessories);
-  const netCost = calcNetCost(totalCost, asset.currentValue);
-  return calcDailyCost(netCost, usedDays);
+  if (asset.status === 'sold' && asset.soldPrice != null) {
+    return calcDailyCost(totalCost - asset.soldPrice, calcDateSpanDays(asset.purchaseDate, asset.soldDate));
+  }
+  if (asset.status === 'retired') {
+    return calcDailyCost(totalCost, calcDateSpanDays(asset.purchaseDate, asset.retiredDate));
+  }
+  const usedDays = calcUsedDays(asset.purchaseDate);
+  return calcDailyCost(calcNetCost(totalCost, asset.currentValue), usedDays);
 }
 
 /** getLoss alias */
@@ -138,8 +151,11 @@ export function getLoss(asset: Asset, accessories: Accessory[]): number {
 }
 
 /** getUsedDays alias */
-export function getUsedDays(asset: Asset): number {
-  return calcUsedDays(asset.purchaseDate);
+export function getUsedDays(assetOrDate: Asset | string): number {
+  if (typeof assetOrDate === 'string') return calcUsedDays(assetOrDate);
+  if (assetOrDate.status === 'sold') return calcDateSpanDays(assetOrDate.purchaseDate, assetOrDate.soldDate);
+  if (assetOrDate.status === 'retired') return calcDateSpanDays(assetOrDate.purchaseDate, assetOrDate.retiredDate);
+  return calcUsedDays(assetOrDate.purchaseDate);
 }
 
 /** getRetentionRate alias */
@@ -149,10 +165,15 @@ export function getRetentionRate(asset: Asset, accessories: Accessory[]): number
 }
 
 /** 闲置警报：高价值但闲置的资产 */
-export function getIdleAlertAssets(assets: Asset[], _accessories: Accessory[]): Asset[] {
+export function getIdleAlertAssets(assets: Asset[], accessories: Accessory[]): Asset[] {
   return assets
-    .filter(a => a.status === 'idle')
-    .sort((a, b) => b.currentValue - a.currentValue);
+    .filter(a => {
+      if (a.status === 'idle') return true;
+      if (a.status !== 'active') return false;
+      const lastDate = a.lastUsedDate || a.purchaseDate;
+      return calcTotalCost(a, accessories) > 1000 && differenceInDays(new Date(), new Date(lastDate)) >= 30;
+    })
+    .sort((a, b) => calcTotalCost(b, accessories) - calcTotalCost(a, accessories));
 }
 
 /** 接近目标的资产：日均成本已接近目标日均 */
@@ -186,14 +207,17 @@ export function getEffectiveValue(asset: Asset): number {
 
 /** 计算资产的完整指标 */
 export function calcAssetMetrics(asset: Asset, accessories: Accessory[]) {
-  const usedDays = calcUsedDays(asset.purchaseDate);
   const totalCost = calcTotalCost(asset, accessories);
-  const netCost = calcNetCost(totalCost, asset.currentValue);
+  const usedDays = getUsedDays(asset);
+  const netCost = asset.status === 'sold' && asset.soldPrice != null
+    ? totalCost - asset.soldPrice
+    : calcNetCost(totalCost, asset.currentValue);
   const dailyCost = calcDailyCost(netCost, usedDays);
   const loss = calcLoss(asset, totalCost);
   const retainRate = calcRetainRate(asset, totalCost);
   const targetDays = calcTargetDays(netCost, asset.targetDailyCost);
   const remainingDays = calcRemainingDays(targetDays, usedDays);
+  const estimatedTargetDate = calcEstimatedTargetDate(remainingDays);
 
   return {
     usedDays,
@@ -204,5 +228,6 @@ export function calcAssetMetrics(asset: Asset, accessories: Accessory[]) {
     retainRate,
     targetDays,
     remainingDays,
+    estimatedTargetDate,
   };
 }

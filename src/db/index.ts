@@ -23,4 +23,15 @@ db.version(1).stores({
   snapshots: 'id, createdAt',
 });
 
+db.version(2).stores({
+  assets: 'id, name, status, categoryId, purchaseDate, createdAt, updatedAt',
+  accessories: 'id, assetId, date, createdAt',
+  wishlistItems: 'id, name, status, createdAt',
+  usageRecords: 'id, assetId, date, usedAt, createdAt',
+  categories: 'id, order, sortOrder',
+  tags: 'id',
+  settings: 'id',
+  snapshots: 'id, createdAt',
+});
+
 export default db;

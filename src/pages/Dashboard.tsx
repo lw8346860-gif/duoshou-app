@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAssets } from '../hooks/useAssets';
+import { useAllAccessories, useAssets } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useSettings';
 import {
   getTotalCost, getDailyCost, getLoss,
@@ -10,25 +10,26 @@ import AssetCard from '../components/AssetCard';
 
 export default function Dashboard() {
   const { assets } = useAssets();
+  const allAccessories = useAllAccessories();
   const { categories } = useCategories();
   const navigate = useNavigate();
-
-  const allAccessories = useMemo(() => {
-    // We need a hook-based approach, but for dashboard we'll use a simplified version
-    return [] as any[];
-  }, []);
 
   const stats = useMemo(() => {
     const active = assets.filter(a => a.status === 'active');
     const idle = assets.filter(a => a.status === 'idle');
     const sold = assets.filter(a => a.status === 'sold');
 
-    const totalInvested = assets.reduce((s, a) => s + getTotalCost(a, allAccessories), 0);
-    const totalValue = assets.reduce((s, a) => s + (a.status === 'sold' ? (a.soldPrice || 0) : a.currentValue), 0);
+    const totalInvested = assets
+      .filter(a => !a.isExcludedFromTotal)
+      .reduce((s, a) => s + getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
+    const totalValue = assets
+      .filter(a => a.status !== 'sold')
+      .reduce((s, a) => s + a.currentValue, 0);
     const totalRecovery = sold.reduce((s, a) => s + (a.soldPrice || 0), 0);
-    const netCost = totalInvested - totalRecovery;
-    const avgDaily = active.length > 0
-      ? active.reduce((s, a) => s + getDailyCost(a, allAccessories), 0) / active.length
+    const netCost = totalInvested - totalValue - totalRecovery;
+    const dailyAssets = active.filter(a => !a.isExcludedFromDailyAverage);
+    const avgDaily = dailyAssets.length > 0
+      ? dailyAssets.reduce((s, a) => s + getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0) / dailyAssets.length
       : 0;
 
     return {
@@ -46,13 +47,13 @@ export default function Dashboard() {
 
   const quickCards = useMemo(() => {
     const withLoss = assets
-      .map(a => ({ asset: a, loss: getLoss(a, allAccessories) }))
+      .map(a => ({ asset: a, loss: getLoss(a, allAccessories.filter(acc => acc.assetId === a.id)) }))
       .sort((a, b) => b.loss - a.loss);
     const mostCostlyError = withLoss[0]?.asset;
 
     const withDaily = assets
       .filter(a => a.status === 'active')
-      .map(a => ({ asset: a, daily: getDailyCost(a, allAccessories) }))
+      .map(a => ({ asset: a, daily: getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))
       .sort((a, b) => a.daily - b.daily);
     const bestValue = withDaily[0]?.asset;
 
@@ -73,8 +74,8 @@ export default function Dashboard() {
       </div>
 
       {/* Main Stats Card */}
-      <div className="bg-[#111111] rounded-3xl p-5 mb-4 text-white">
-        <div className="text-xs text-white/60 mb-3">📊 今日剁手指数</div>
+      <div className="surface-ink rounded-3xl p-5 mb-4">
+        <div className="text-xs text-white/60 mb-3">今日剁手指数</div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <div className="text-3xl font-bold">{stats.total}</div>
@@ -82,9 +83,9 @@ export default function Dashboard() {
           </div>
           <div className="text-right">
             <div className="text-sm">
-              <span className="text-[#B7F23A]">{stats.active}</span>
+              <span className="text-white/60">{stats.active}</span>
               <span className="text-white/40"> 服役 · </span>
-              <span className="text-[#FAAD14]">{stats.idle}</span>
+              <span className="text-white/60">{stats.idle}</span>
               <span className="text-white/40"> 闲置 · </span>
               <span className="text-white/60">{stats.sold}</span>
               <span className="text-white/40"> 卖出</span>
@@ -103,7 +104,7 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-2 gap-3 mt-3">
           <div>
-            <div className="text-lg font-bold text-[#B7F23A]">{formatCurrency(stats.totalRecovery)}</div>
+            <div className="text-lg font-bold">{formatCurrency(stats.totalRecovery)}</div>
             <div className="text-xs text-white/60">累计回收</div>
           </div>
           <div className="text-right">
@@ -113,7 +114,7 @@ export default function Dashboard() {
         </div>
         <div className="mt-3 pt-3 border-t border-white/10">
           <div className="text-xs text-white/60">平均日均成本</div>
-          <div className="text-xl font-bold text-[#B7F23A]">{formatCurrency(stats.avgDaily)}</div>
+          <div className="text-xl font-bold">{formatCurrency(stats.avgDaily)}</div>
         </div>
       </div>
 
@@ -124,9 +125,9 @@ export default function Dashboard() {
             onClick={() => navigate(`/assets/${quickCards.mostCostlyError!.id}`)}
             className="bg-white rounded-2xl p-4 text-left shadow-sm border border-[#E5E5E5]"
           >
-            <div className="text-xs text-[#FF4D4F] mb-1">💸 最贵错误</div>
+            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />最贵错误</div>
             <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.mostCostlyError.name}</div>
-            <div className="text-xs text-[#8E8E93]">亏损 {formatCurrency(getLoss(quickCards.mostCostlyError, allAccessories))}</div>
+            <div className="text-xs text-[#8E8E93]">亏损 {formatCurrency(getLoss(quickCards.mostCostlyError, allAccessories.filter(acc => acc.assetId === quickCards.mostCostlyError!.id)))}</div>
           </button>
         )}
         {quickCards.bestValue && (
@@ -134,9 +135,9 @@ export default function Dashboard() {
             onClick={() => navigate(`/assets/${quickCards.bestValue!.id}`)}
             className="bg-white rounded-2xl p-4 text-left shadow-sm border border-[#E5E5E5]"
           >
-            <div className="text-xs text-[#52c41a] mb-1">🏆 最值回票价</div>
+            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />最值回票价</div>
             <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.bestValue.name}</div>
-            <div className="text-xs text-[#8E8E93]">日均 {formatCurrency(getDailyCost(quickCards.bestValue, allAccessories))}</div>
+            <div className="text-xs text-[#8E8E93]">日均 {formatCurrency(getDailyCost(quickCards.bestValue, allAccessories.filter(acc => acc.assetId === quickCards.bestValue!.id)))}</div>
           </button>
         )}
         {quickCards.idleAlert && (
@@ -144,7 +145,7 @@ export default function Dashboard() {
             onClick={() => navigate(`/assets/${quickCards.idleAlert!.id}`)}
             className="bg-white rounded-2xl p-4 text-left shadow-sm border border-[#E5E5E5]"
           >
-            <div className="text-xs text-[#FAAD14] mb-1">⚠️ 闲置警报</div>
+            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />闲置警报</div>
             <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.idleAlert.name}</div>
             <div className="text-xs text-[#8E8E93]">高价闲置中</div>
           </button>
@@ -154,7 +155,7 @@ export default function Dashboard() {
             onClick={() => navigate(`/assets/${quickCards.nearTarget!.id}`)}
             className="bg-white rounded-2xl p-4 text-left shadow-sm border border-[#E5E5E5]"
           >
-            <div className="text-xs text-[#B7F23A] mb-1">🎯 快到目标</div>
+            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />快到目标</div>
             <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.nearTarget.name}</div>
             <div className="text-xs text-[#8E8E93]">即将达标</div>
           </button>
@@ -172,14 +173,14 @@ export default function Dashboard() {
             <AssetCard
               key={asset.id}
               asset={asset}
-              accessories={allAccessories}
+              accessories={allAccessories.filter(acc => acc.assetId === asset.id)}
               categories={categories}
               onClick={() => navigate(`/assets/${asset.id}`)}
             />
           ))}
           {recentAssets.length === 0 && (
             <div className="text-center py-12 text-[#8E8E93]">
-              <div className="text-4xl mb-2">📦</div>
+              <div className="category-icon text-4xl mb-2 mx-auto"><span className="category-icon-fallback">剁</span></div>
               <div>还没有资产，点击右下角 + 添加</div>
             </div>
           )}

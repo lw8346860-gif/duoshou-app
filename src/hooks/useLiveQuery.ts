@@ -22,6 +22,10 @@ export function useAssetAccessories(assetId: string | undefined) {
   ) ?? [];
 }
 
+export function useAccessories() {
+  return useLiveQuery(() => db.accessories.toArray()) ?? [];
+}
+
 export function useAssetUsageRecords(assetId: string | undefined) {
   return useLiveQuery(
     () => (assetId ? db.usageRecords.where('assetId').equals(assetId).sortBy('date') : []),
@@ -56,12 +60,13 @@ export function useAssetMutations() {
 export function useAccessoryMutations() {
   const add = useCallback(async (accessory: Omit<Accessory, 'id'>) => {
     const id = uuidv4();
-    await db.accessories.add({ ...accessory, id });
+    const now = new Date().toISOString();
+    await db.accessories.add({ ...accessory, id, createdAt: now, updatedAt: now });
     return id;
   }, []);
 
   const update = useCallback(async (id: string, changes: Partial<Accessory>) => {
-    await db.accessories.update(id, changes);
+    await db.accessories.update(id, { ...changes, updatedAt: new Date().toISOString() });
   }, []);
 
   const remove = useCallback(async (id: string) => {
@@ -99,7 +104,8 @@ export function useWishlistMutations() {
 export function useUsageRecordMutations() {
   const add = useCallback(async (record: Omit<UsageRecord, 'id'>) => {
     const id = uuidv4();
-    await db.usageRecords.add({ ...record, id });
+    const now = new Date().toISOString();
+    await db.usageRecords.add({ ...record, id, usedAt: record.date, createdAt: now });
     await db.assets.update(record.assetId, {
       lastUsedDate: record.date,
       useCount: ((await db.assets.get(record.assetId))?.useCount ?? 0) + 1,
@@ -109,7 +115,17 @@ export function useUsageRecordMutations() {
   }, []);
 
   const remove = useCallback(async (id: string) => {
+    const record = await db.usageRecords.get(id);
     await db.usageRecords.delete(id);
+    if (record) {
+      const asset = await db.assets.get(record.assetId);
+      if (asset) {
+        await db.assets.update(record.assetId, {
+          useCount: Math.max(0, (asset.useCount ?? 0) - 1),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
   }, []);
 
   return { add, remove };
@@ -118,27 +134,41 @@ export function useUsageRecordMutations() {
 // ===== Categories =====
 export function useCategories() {
   const cats = useLiveQuery(() => db.categories.orderBy('order').toArray());
-  return cats ?? [];
+  return (cats ?? []).filter(cat => !cat.isHidden);
 }
 
 export function useCategoryMutations() {
   const initDefaults = useCallback(async () => {
     const count = await db.categories.count();
     if (count === 0) {
-      await db.categories.bulkAdd(DEFAULT_CATEGORIES);
+      const now = new Date().toISOString();
+      await db.categories.bulkAdd(DEFAULT_CATEGORIES.map(cat => ({
+        ...cat,
+        sortOrder: cat.order,
+        isDefault: true,
+        isHidden: false,
+        createdAt: now,
+        updatedAt: now,
+      })));
     }
   }, []);
 
   const add = useCallback(async (cat: Category) => {
-    await db.categories.add(cat);
+    const now = new Date().toISOString();
+    await db.categories.add({ ...cat, sortOrder: cat.order, isDefault: false, isHidden: false, createdAt: now, updatedAt: now });
   }, []);
 
   const update = useCallback(async (id: string, changes: Partial<Category>) => {
-    await db.categories.update(id, changes);
+    await db.categories.update(id, { ...changes, updatedAt: new Date().toISOString() });
   }, []);
 
   const remove = useCallback(async (id: string) => {
-    await db.categories.delete(id);
+    const cat = await db.categories.get(id);
+    if (cat?.isDefault) {
+      await db.categories.update(id, { isHidden: true, updatedAt: new Date().toISOString() });
+    } else {
+      await db.categories.delete(id);
+    }
   }, []);
 
   return { initDefaults, add, update, remove };
@@ -153,16 +183,18 @@ export function useTagMutations() {
   const initDefaults = useCallback(async () => {
     const count = await db.tags.count();
     if (count === 0) {
-      await db.tags.bulkAdd(DEFAULT_TAGS);
+      const now = new Date().toISOString();
+      await db.tags.bulkAdd(DEFAULT_TAGS.map(tag => ({ ...tag, createdAt: now, updatedAt: now })));
     }
   }, []);
 
   const add = useCallback(async (tag: Tag) => {
-    await db.tags.add(tag);
+    const now = new Date().toISOString();
+    await db.tags.add({ ...tag, createdAt: now, updatedAt: now });
   }, []);
 
   const update = useCallback(async (id: string, changes: Partial<Tag>) => {
-    await db.tags.update(id, changes);
+    await db.tags.update(id, { ...changes, updatedAt: new Date().toISOString() });
   }, []);
 
   const remove = useCallback(async (id: string) => {
@@ -181,8 +213,9 @@ export function useSettings() {
 export function useSettingsMutations() {
   const update = useCallback(async (changes: Partial<Settings>) => {
     const existing = await db.settings.toCollection().first();
+    const now = new Date().toISOString();
     if (existing) {
-      await db.settings.update(existing.id, changes);
+      await db.settings.update(existing.id, { ...changes, updatedAt: now });
     } else {
       await db.settings.add({
         id: 'default',
@@ -191,6 +224,13 @@ export function useSettingsMutations() {
         thousandsSeparator: true,
         durationDisplay: 'auto',
         theme: 'system',
+        useThousandsSeparator: true,
+        durationDisplayMode: 'daysAndDate',
+        themeMode: 'light',
+        backupVersion: 1,
+        homeSortMode: 'updatedAt',
+        createdAt: now,
+        updatedAt: now,
         ...changes,
       });
     }
@@ -217,11 +257,13 @@ export function useBackup() {
         db.settings.toCollection().first(),
       ]);
     return {
-      appName: '剁手',
+      appName: 'DuoShou',
+      displayName: '剁手',
       schemaVersion: 1,
       exportedAt: new Date().toISOString(),
       assets,
       accessories,
+      wishlist: wishlistItems,
       wishlistItems,
       usageRecords,
       categories,
@@ -248,7 +290,7 @@ export function useBackup() {
     return snapshot;
   }, [exportData]);
 
-  const importData = useCallback(async (data: Awaited<ReturnType<typeof exportData>>) => {
+  const importData = useCallback(async (data: import('../types').BackupData) => {
     await createSnapshot('导入前自动备份');
     await db.transaction('rw', [db.assets, db.accessories, db.wishlistItems, db.usageRecords, db.categories, db.tags, db.settings], async () => {
       await db.assets.clear();
@@ -261,7 +303,8 @@ export function useBackup() {
 
       if (data.assets.length) await db.assets.bulkAdd(data.assets);
       if (data.accessories.length) await db.accessories.bulkAdd(data.accessories);
-      if (data.wishlistItems.length) await db.wishlistItems.bulkAdd(data.wishlistItems);
+      const wishlist = data.wishlistItems ?? data.wishlist ?? [];
+      if (wishlist.length) await db.wishlistItems.bulkAdd(wishlist);
       if (data.usageRecords.length) await db.usageRecords.bulkAdd(data.usageRecords);
       if (data.categories.length) await db.categories.bulkAdd(data.categories);
       if (data.tags.length) await db.tags.bulkAdd(data.tags as Tag[]);
