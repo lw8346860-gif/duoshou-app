@@ -4,7 +4,7 @@ import { useAllAccessories, useAssets } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useSettings';
 import {
   getTotalCost, getDailyCost, getLoss,
-  formatCurrency, getIdleAlertAssets, getNearTargetAssets,
+  formatCurrency, getIdleAlertAssets, getNearTargetAssets, getCurrentValue,
 } from '../utils/calculations';
 import AssetCard from '../components/AssetCard';
 
@@ -17,16 +17,14 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const active = assets.filter(a => a.status === 'active');
     const idle = assets.filter(a => a.status === 'idle');
-    const sold = assets.filter(a => a.status === 'sold');
+    const retired = assets.filter(a => a.status === 'retired' || a.status === 'sold' || a.status === 'discarded');
 
     const totalInvested = assets
       .filter(a => !a.isExcludedFromTotal)
       .reduce((s, a) => s + getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
     const totalValue = assets
-      .filter(a => a.status !== 'sold')
-      .reduce((s, a) => s + a.currentValue, 0);
-    const totalRecovery = sold.reduce((s, a) => s + (a.soldPrice || 0), 0);
-    const netCost = totalInvested - totalValue - totalRecovery;
+      .reduce((s, a) => s + getCurrentValue(a), 0);
+    const netCost = totalInvested - totalValue;
     const dailyAssets = active.filter(a => !a.isExcludedFromDailyAverage);
     const avgDaily = dailyAssets.length > 0
       ? dailyAssets.reduce((s, a) => s + getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0) / dailyAssets.length
@@ -36,10 +34,9 @@ export default function Dashboard() {
       total: assets.length,
       active: active.length,
       idle: idle.length,
-      sold: sold.length,
+      retired: retired.length,
       totalInvested,
       totalValue,
-      totalRecovery,
       netCost,
       avgDaily,
     };
@@ -87,8 +84,8 @@ export default function Dashboard() {
               <span className="text-white/40"> 服役 · </span>
               <span className="text-white/60">{stats.idle}</span>
               <span className="text-white/40"> 闲置 · </span>
-              <span className="text-white/60">{stats.sold}</span>
-              <span className="text-white/40"> 卖出</span>
+              <span className="text-white/60">{stats.retired}</span>
+              <span className="text-white/40"> 退役</span>
             </div>
           </div>
         </div>
@@ -104,17 +101,13 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-2 gap-3 mt-3">
           <div>
-            <div className="text-lg font-bold">{formatCurrency(stats.totalRecovery)}</div>
-            <div className="text-xs text-white/60">累计回收</div>
-          </div>
-          <div className="text-right">
             <div className="text-lg font-bold">{formatCurrency(stats.netCost)}</div>
             <div className="text-xs text-white/60">净消费</div>
           </div>
-        </div>
-        <div className="mt-3 pt-3 border-t border-white/10">
-          <div className="text-xs text-white/60">平均日均成本</div>
-          <div className="text-xl font-bold">{formatCurrency(stats.avgDaily)}</div>
+          <div className="text-right">
+            <div className="text-lg font-bold">{formatCurrency(stats.avgDaily)}</div>
+            <div className="text-xs text-white/60">平均日均</div>
+          </div>
         </div>
       </div>
 

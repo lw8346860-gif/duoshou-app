@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAllAccessories, useAssets } from '../hooks/useAssets';
 import { useCategories, useTags } from '../hooks/useSettings';
 import type { AssetStatus } from '../types';
-import { STATUS_LABELS } from '../types';
+import { REMOVED_CATEGORY_IDS, STATUS_LABELS } from '../types';
 import AssetCard from '../components/AssetCard';
 import CategoryIcon from '../components/CategoryIcon';
 import { getDailyCost, getLoss, getRetentionRate, getUsedDays } from '../utils/calculations';
@@ -13,7 +13,8 @@ type SortKey = 'updatedAt' | 'purchaseDate' | 'purchasePrice' | 'dailyCost' | 'l
 export default function AssetList() {
   const { assets } = useAssets();
   const allAccessories = useAllAccessories();
-  const { categories } = useCategories();
+  const { categories: rawCategories } = useCategories();
+  const categories = rawCategories.filter(cat => !REMOVED_CATEGORY_IDS.includes(cat.id));
   const { tags } = useTags();
   const navigate = useNavigate();
 
@@ -30,9 +31,6 @@ export default function AssetList() {
       const q = search.toLowerCase();
       result = result.filter(a =>
         a.name.toLowerCase().includes(q) ||
-        a.brand.toLowerCase().includes(q) ||
-        a.model.toLowerCase().includes(q) ||
-        a.note.toLowerCase().includes(q) ||
         a.tagIds.some(tId => {
           const tag = tags.find(t => t.id === tId);
           return tag?.name.toLowerCase().includes(q);
@@ -72,7 +70,7 @@ export default function AssetList() {
       <div className="flex gap-2 mb-3">
         <input
           type="text"
-          placeholder="搜索名称、品牌、型号..."
+          placeholder="搜索名称或标签..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="flex-1 bg-white rounded-xl px-4 py-2.5 text-sm border border-[#E5E5E5] outline-none focus:border-[#111111]"
@@ -95,12 +93,12 @@ export default function AssetList() {
                 onClick={() => setStatusFilter('')}
                 className={`choice-chip px-3 py-1 rounded-full text-xs ${!statusFilter ? 'choice-chip-selected' : ''}`}
               >全部</button>
-              {(Object.entries(STATUS_LABELS) as [AssetStatus, string][]).map(([k, v]) => (
+              {(['active', 'idle', 'retired'] as AssetStatus[]).map(k => (
                 <button
                   key={k}
                   onClick={() => setStatusFilter(k)}
                   className={`choice-chip px-3 py-1 rounded-full text-xs ${statusFilter === k ? 'choice-chip-selected' : ''}`}
-                >{v}</button>
+                >{STATUS_LABELS[k]}</button>
               ))}
             </div>
           </div>

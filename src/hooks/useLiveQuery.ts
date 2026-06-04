@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import db from '../db';
 import type { Asset, Accessory, WishlistItem, UsageRecord, Category, Tag, Settings, Snapshot } from '../types';
-import { DEFAULT_CATEGORIES, DEFAULT_TAGS } from '../types';
+import { DEFAULT_CATEGORIES, DEFAULT_TAGS, REMOVED_CATEGORY_IDS } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useCallback } from 'react';
 
@@ -134,7 +134,7 @@ export function useUsageRecordMutations() {
 // ===== Categories =====
 export function useCategories() {
   const cats = useLiveQuery(() => db.categories.orderBy('order').toArray());
-  return (cats ?? []).filter(cat => !cat.isHidden);
+  return (cats ?? []).filter(cat => !cat.isHidden && !REMOVED_CATEGORY_IDS.includes(cat.id));
 }
 
 export function useCategoryMutations() {

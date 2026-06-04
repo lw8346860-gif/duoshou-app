@@ -4,7 +4,7 @@ import { useWishlist } from '../hooks/useWishlist';
 import { useCategories } from '../hooks/useSettings';
 import {
   getTotalCost, getDailyCost, getLoss, getRetentionRate, getUsedDays,
-  formatCurrency,
+  formatCurrency, getCurrentValue,
 } from '../utils/calculations';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Asset } from '../types';
@@ -12,7 +12,7 @@ import CategoryIcon from '../components/CategoryIcon';
 
 const COLORS = ['#8A3B0A', '#A94F12', '#C96A19', '#DF8431', '#F0A14B', '#F6BC74', '#F8D3A5', '#FBE6CF'];
 
-type Tab = 'overview' | 'rankings' | 'category' | 'brand';
+type Tab = 'overview' | 'rankings' | 'category';
 
 export default function Stats() {
   const { assets } = useAssets();
@@ -23,16 +23,15 @@ export default function Stats() {
 
   const stats = useMemo(() => {
     const totalInvested = assets.filter(a => !a.isExcludedFromTotal).reduce((s, a) => s + getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
-    const totalValue = assets.filter(a => a.status !== 'sold').reduce((s, a) => s + a.currentValue, 0);
-    const totalRecovery = assets.filter(a => a.status === 'sold').reduce((s, a) => s + (a.soldPrice || 0), 0);
-    const netCost = totalInvested - totalValue - totalRecovery;
+    const totalValue = assets.reduce((s, a) => s + getCurrentValue(a), 0);
+    const netCost = totalInvested - totalValue;
     const totalLoss = assets.reduce((s, a) => s + getLoss(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
     const dailyAssets = assets.filter(a => a.status === 'active' && !a.isExcludedFromDailyAverage);
     const avgDaily = dailyAssets.length > 0
       ? dailyAssets.reduce((s, a) => s + getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0) / dailyAssets.length
       : 0;
 
-    return { totalInvested, totalValue, totalRecovery, netCost, totalLoss, avgDaily, assetCount: assets.length, wishlistCount: wishlistItems.length };
+    return { totalInvested, totalValue, netCost, totalLoss, avgDaily, assetCount: assets.length, wishlistCount: wishlistItems.length };
   }, [assets, wishlistItems, allAccessories]);
 
   const rankings = useMemo(() => {
@@ -56,7 +55,7 @@ export default function Stats() {
       existing.count++;
       const assetAccessories = allAccessories.filter(acc => acc.assetId === a.id);
       existing.invested += getTotalCost(a, assetAccessories);
-      existing.value += a.status === 'sold' ? (a.soldPrice || 0) : a.currentValue;
+      existing.value += getCurrentValue(a);
       existing.loss += getLoss(a, assetAccessories);
       if (a.status === 'active') {
         existing.dailySum += getDailyCost(a, assetAccessories);
@@ -69,21 +68,6 @@ export default function Stats() {
       ...data,
       avgDaily: data.dailyCount > 0 ? data.dailySum / data.dailyCount : 0,
     })).sort((a, b) => b.invested - a.invested);
-  }, [assets, allAccessories]);
-
-  const brandStats = useMemo(() => {
-    const map = new Map<string, { count: number; invested: number; value: number; loss: number }>();
-    assets.forEach(a => {
-      if (!a.brand) return;
-      const existing = map.get(a.brand) || { count: 0, invested: 0, value: 0, loss: 0 };
-      existing.count++;
-      const assetAccessories = allAccessories.filter(acc => acc.assetId === a.id);
-      existing.invested += getTotalCost(a, assetAccessories);
-      existing.value += a.status === 'sold' ? (a.soldPrice || 0) : a.currentValue;
-      existing.loss += getLoss(a, assetAccessories);
-      map.set(a.brand, existing);
-    });
-    return Array.from(map.entries()).map(([brand, data]) => ({ brand, ...data })).sort((a, b) => b.invested - a.invested);
   }, [assets, allAccessories]);
 
   const pieData = categoryStats.map(cs => {
@@ -99,7 +83,6 @@ export default function Stats() {
       <div className="grid grid-cols-2 gap-3 mb-4">
         <StatBox label="总投入" value={formatCurrency(stats.totalInvested)} />
         <StatBox label="当前估值" value={formatCurrency(stats.totalValue)} />
-        <StatBox label="累计回收" value={formatCurrency(stats.totalRecovery)} />
         <StatBox label="净消费" value={formatCurrency(stats.netCost)} />
         <StatBox label="资产数量" value={String(stats.assetCount)} />
         <StatBox label="心愿数量" value={String(stats.wishlistCount)} />
@@ -113,7 +96,6 @@ export default function Stats() {
           { key: 'overview' as Tab, label: '总览' },
           { key: 'rankings' as Tab, label: '排行' },
           { key: 'category' as Tab, label: '分类' },
-          { key: 'brand' as Tab, label: '品牌' },
         ]).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex-1 py-2 rounded-lg text-xs transition-colors ${tab === t.key ? 'segmented-tab-selected' : 'segmented-tab'}`}>
@@ -205,24 +187,6 @@ export default function Stats() {
         </div>
       )}
 
-      {tab === 'brand' && (
-        <div className="space-y-3">
-          {brandStats.map(bs => (
-            <div key={bs.brand} className="bg-white rounded-2xl p-4 border border-[#E5E5E5]">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="font-semibold text-sm">{bs.brand}</span>
-                <span className="text-xs text-[#8E8E93]">{bs.count}个</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div>投入: <span className="font-bold">{formatCurrency(bs.invested)}</span></div>
-                <div>估值: <span className="font-bold">{formatCurrency(bs.value)}</span></div>
-                <div>亏损: <span className="font-bold">{formatCurrency(bs.loss)}</span></div>
-              </div>
-            </div>
-          ))}
-          {brandStats.length === 0 && <div className="text-center py-8 text-[#8E8E93]">暂无数据</div>}
-        </div>
-      )}
     </div>
   );
 }

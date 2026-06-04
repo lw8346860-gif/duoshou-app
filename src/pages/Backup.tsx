@@ -63,7 +63,7 @@ export default function Backup() {
   return (
     <div className="space-y-4 pb-8">
       <div className="flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="text-sm text-[#8E8E93]">← 返回</button>
+        <button onClick={() => navigate(-1)} className="back-button">←</button>
         <h1 className="text-lg font-bold text-[#1D1D1F]">备份与恢复</h1>
         <span className="w-8" />
       </div>

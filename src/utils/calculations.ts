@@ -22,6 +22,21 @@ export function calcTotalCost(asset: Asset, accessories: Accessory[]): number {
   return asset.purchasePrice + accessoryCost;
 }
 
+/** 6 年折旧期，加速折旧暂按每年减值 30% 估算当前估值 */
+export function estimateDepreciatedValue(purchasePrice: number, purchaseDate: string): number {
+  if (purchasePrice <= 0) return 0;
+  const usedDays = calcUsedDays(purchaseDate);
+  if (usedDays <= 0) return purchasePrice;
+  const years = Math.min(6, usedDays / 365);
+  return Math.max(0, purchasePrice * Math.pow(0.7, years));
+}
+
+export function getCurrentValue(asset: Asset): number {
+  return asset.currentValue > 0
+    ? asset.currentValue
+    : estimateDepreciatedValue(asset.purchasePrice, asset.purchaseDate);
+}
+
 /** 净成本 = 总成本 - currentValue（无估值=总成本） */
 export function calcNetCost(totalCost: number, currentValue: number): number {
   if (currentValue > 0) return totalCost - currentValue;
@@ -39,10 +54,7 @@ export function calcLoss(asset: Asset, totalCost: number): number {
   if (asset.status === 'sold' && asset.soldPrice != null) {
     return totalCost - asset.soldPrice;
   }
-  if (asset.currentValue > 0) {
-    return totalCost - asset.currentValue;
-  }
-  return totalCost;
+  return totalCost - getCurrentValue(asset);
 }
 
 /** 保值率 = currentValue / totalCost（已卖出= soldPrice / totalCost） */
@@ -51,10 +63,7 @@ export function calcRetainRate(asset: Asset, totalCost: number): number {
   if (asset.status === 'sold' && asset.soldPrice != null) {
     return asset.soldPrice / totalCost;
   }
-  if (asset.currentValue > 0) {
-    return asset.currentValue / totalCost;
-  }
-  return 0;
+  return getCurrentValue(asset) / totalCost;
 }
 
 /** 目标天数 = 净成本 / targetDailyCost */
@@ -141,7 +150,7 @@ export function getDailyCost(asset: Asset, accessories: Accessory[]): number {
     return calcDailyCost(totalCost, calcDateSpanDays(asset.purchaseDate, asset.retiredDate));
   }
   const usedDays = calcUsedDays(asset.purchaseDate);
-  return calcDailyCost(calcNetCost(totalCost, asset.currentValue), usedDays);
+  return calcDailyCost(calcNetCost(totalCost, getCurrentValue(asset)), usedDays);
 }
 
 /** getLoss alias */
@@ -202,7 +211,7 @@ export function formatDays(days: number): string {
 
 /** 获取有效估值（有估值用估值，没有用购买价） */
 export function getEffectiveValue(asset: Asset): number {
-  return asset.currentValue > 0 ? asset.currentValue : asset.purchasePrice;
+  return getCurrentValue(asset);
 }
 
 /** 计算资产的完整指标 */
@@ -211,7 +220,7 @@ export function calcAssetMetrics(asset: Asset, accessories: Accessory[]) {
   const usedDays = getUsedDays(asset);
   const netCost = asset.status === 'sold' && asset.soldPrice != null
     ? totalCost - asset.soldPrice
-    : calcNetCost(totalCost, asset.currentValue);
+    : calcNetCost(totalCost, getCurrentValue(asset));
   const dailyCost = calcDailyCost(netCost, usedDays);
   const loss = calcLoss(asset, totalCost);
   const retainRate = calcRetainRate(asset, totalCost);

@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAsset, useAssetAccessories, useAssetUsageRecords, useAssetMutations, useBackup, useUsageRecordMutations } from '../hooks/useLiveQuery';
-import { calcAssetMetrics, formatMoney, formatDays } from '../utils/calculations';
+import { calcAssetMetrics, formatMoney, formatDays, getCurrentValue } from '../utils/calculations';
 import { STATUS_LABELS, ACCESSORY_TYPE_LABELS } from '../types';
 
 export default function AssetDetail() {
@@ -18,7 +18,6 @@ export default function AssetDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newUsageNote, setNewUsageNote] = useState('');
   const [showUsageForm, setShowUsageForm] = useState(false);
-  const [sellEstimate, setSellEstimate] = useState('');
 
   if (!asset) {
     return (
@@ -57,13 +56,11 @@ export default function AssetDetail() {
     });
   };
 
-  const markStatus = async (status: 'idle' | 'retired' | 'sold') => {
+  const markStatus = async (status: 'active' | 'idle' | 'retired') => {
     if (!id) return;
     const today = new Date().toISOString().split('T')[0];
     if (status === 'retired') {
       await update(id, { status, retiredDate: asset.retiredDate ?? today });
-    } else if (status === 'sold') {
-      await update(id, { status, soldDate: asset.soldDate ?? today, soldPrice: asset.soldPrice ?? asset.currentValue });
     } else {
       await update(id, { status });
     }
@@ -76,9 +73,9 @@ export default function AssetDetail() {
     <div className="space-y-4 pb-8">
       {/* 顶部导航 */}
       <div className="flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="text-sm text-[#8E8E93]">← 返回</button>
+        <button onClick={() => navigate(-1)} className="back-button">←</button>
         <h1 className="text-lg font-bold text-[#1D1D1F] truncate flex-1 text-center px-2">{asset.name}</h1>
-        <button onClick={() => navigate(`/assets/${id}/edit`)} className="text-sm text-[#1D1D1F] font-semibold">编辑</button>
+        <div className="w-10" />
       </div>
 
       {/* 资产头像 */}
@@ -91,9 +88,6 @@ export default function AssetDetail() {
           )}
         </div>
         <h2 className="text-xl font-bold text-[#1D1D1F]">{asset.name}</h2>
-        <div className="text-sm text-[#8E8E93] mt-1">
-          {asset.brand && `${asset.brand} · `}{asset.model}
-        </div>
         <span className="status-pill inline-flex items-center gap-1 mt-2 px-3 py-1 rounded-full text-xs font-medium">
           <span className="status-dot" />
           {STATUS_LABELS[asset.status]}
@@ -102,11 +96,11 @@ export default function AssetDetail() {
           <button onClick={handleRecordUsage} className="bg-[#B7F23A] text-[#111111] py-2 rounded-xl text-xs font-semibold">
             今天用了
           </button>
-          <button onClick={() => markStatus('idle')} className="bg-[#F5F5F3] text-[#1D1D1F] py-2 rounded-xl text-xs">
-            标记闲置
+          <button onClick={() => markStatus('active')} className="bg-[#F5F5F3] text-[#1D1D1F] py-2 rounded-xl text-xs">
+            服役
           </button>
-          <button onClick={() => markStatus('sold')} className="bg-[#F5F5F3] text-[#1D1D1F] py-2 rounded-xl text-xs">
-            卖出
+          <button onClick={() => markStatus('idle')} className="bg-[#F5F5F3] text-[#1D1D1F] py-2 rounded-xl text-xs">
+            闲置
           </button>
           <button onClick={() => markStatus('retired')} className="bg-[#F5F5F3] text-[#1D1D1F] py-2 rounded-xl text-xs">
             退役
@@ -128,9 +122,9 @@ export default function AssetDetail() {
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3">
             <div className="text-lg font-bold text-[#1D1D1F]">
-              {asset.currentValue > 0 ? formatMoney(asset.currentValue, asset.currency) : '—'}
+              {formatMoney(getCurrentValue(asset), asset.currency)}
             </div>
-            <div className="text-[10px] text-[#8E8E93]">当前估值</div>
+            <div className="text-[10px] text-[#8E8E93]">{asset.currentValue > 0 ? '当前估值' : '折旧估值'}</div>
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3">
             <div className="text-lg font-bold text-[#1D1D1F]">{formatDays(metrics.usedDays)}</div>
@@ -177,12 +171,10 @@ export default function AssetDetail() {
             <span className="text-[#1D1D1F]">总成本</span>
             <span className="text-[#1D1D1F]">{formatMoney(metrics.totalCost, asset.currency)}</span>
           </div>
-          {asset.currentValue > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-[#8E8E93]">- 当前估值</span>
-              <span className="text-[#1D1D1F]">{formatMoney(asset.currentValue, asset.currency)}</span>
-            </div>
-          )}
+          <div className="flex justify-between text-sm">
+            <span className="text-[#8E8E93]">- {asset.currentValue > 0 ? '当前估值' : '折旧估值'}</span>
+            <span className="text-[#1D1D1F]">{formatMoney(getCurrentValue(asset), asset.currency)}</span>
+          </div>
           <div className="border-t border-gray-100 pt-2 flex justify-between text-sm font-bold">
             <span className="text-[#1D1D1F]">净成本</span>
             <span className="text-[#1D1D1F]">{formatMoney(metrics.netCost, asset.currency)}</span>
@@ -237,46 +229,6 @@ export default function AssetDetail() {
                 />
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* 卖出测算器（仅服役中/闲置） */}
-      {(asset.status === 'active' || asset.status === 'idle') && asset.currentValue > 0 && (
-        <div className="bg-white rounded-2xl p-4">
-          <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">💰 卖出测算</h3>
-          <input
-            type="number"
-            placeholder="预计卖出价格"
-            value={sellEstimate}
-            onChange={e => setSellEstimate(e.target.value)}
-            className="w-full bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none mb-3"
-          />
-          <div className="space-y-2">
-            {sellEstimate && Number(sellEstimate) >= 0 && (
-              <>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#8E8E93]">预计回收金额</span>
-                  <span className="text-[#1D1D1F]">{formatMoney(Number(sellEstimate), asset.currency)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#8E8E93]">预计最终日均</span>
-                  <span className="text-[#1D1D1F]">{formatMoney((metrics.totalCost - Number(sellEstimate)) / Math.max(1, metrics.usedDays), asset.currency)}</span>
-                </div>
-              </>
-            )}
-            <div className="flex justify-between text-sm">
-              <span className="text-[#8E8E93]">以当前估值卖出</span>
-              <span className="text-[#1D1D1F]">{formatMoney(asset.currentValue, asset.currency)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-[#8E8E93]">亏损</span>
-              <span className="text-[#1D1D1F]">{formatMoney(metrics.loss, asset.currency)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-[#8E8E93]">回收率</span>
-              <span className="text-[#1D1D1F]">{(metrics.retainRate * 100).toFixed(1)}%</span>
-            </div>
           </div>
         </div>
       )}
@@ -392,34 +344,42 @@ export default function AssetDetail() {
         </div>
       )}
 
-      {/* 删除按钮 */}
-      <div className="pt-4">
+      {/* 底部操作 */}
+      <div className="pt-4 space-y-2">
         {showDeleteConfirm ? (
-          <div className="bg-red-50 rounded-2xl p-4 text-center space-y-2">
+          <div className="delete-confirm rounded-2xl p-4 text-center space-y-2">
             <div className="text-sm text-[#1D1D1F] font-medium">确定删除「{asset.name}」？</div>
-            <div className="text-xs text-[#8E8E93]">将同时删除所有配件和使用记录，此操作不可撤销</div>
+            <div className="text-xs text-[#8E8E93]">将同时删除使用记录，此操作不可撤销</div>
             <div className="flex gap-2 justify-center">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 rounded-xl text-sm bg-gray-100"
+                className="btn-secondary px-4 py-2 rounded-xl text-sm"
               >
                 取消
               </button>
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 rounded-xl text-sm bg-[#FF4D4F] text-white"
+                className="btn-danger px-4 py-2 rounded-xl text-sm"
               >
                 确认删除
               </button>
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="w-full py-3 text-sm text-[#1D1D1F] bg-white rounded-2xl"
-          >
-            删除资产
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => navigate(`/assets/${id}/edit`)}
+              className="btn-primary py-3 rounded-2xl text-sm"
+            >
+              编辑资产
+            </button>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="btn-secondary py-3 rounded-2xl text-sm"
+            >
+              删除资产
+            </button>
+          </div>
         )}
       </div>
     </div>

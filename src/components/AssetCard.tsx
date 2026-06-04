@@ -1,6 +1,6 @@
 import type { Asset, Accessory, Category } from '../types';
 import { STATUS_LABELS } from '../types';
-import { calcUsedDays, calcTotalCost, calcDailyCost, calcNetCost, formatMoney, formatDays } from '../utils/calculations';
+import { calcUsedDays, calcTotalCost, calcDailyCost, calcNetCost, formatMoney, formatDays, getCurrentValue } from '../utils/calculations';
 import CategoryIcon from './CategoryIcon';
 
 interface AssetCardProps {
@@ -14,7 +14,7 @@ export default function AssetCard({ asset, accessories, categories, onClick }: A
   const cat = categories.find(c => c.id === asset.categoryId);
   const usedDays = calcUsedDays(asset.purchaseDate);
   const totalCost = calcTotalCost(asset, accessories);
-  const netCost = calcNetCost(totalCost, asset.currentValue);
+  const netCost = calcNetCost(totalCost, getCurrentValue(asset));
   const dailyCost = calcDailyCost(netCost, usedDays);
 
   return (
@@ -41,8 +41,6 @@ export default function AssetCard({ asset, accessories, categories, onClick }: A
           </div>
 
           <div className="text-xs text-[#8E8E93] mb-2">
-            {asset.brand && <span>{asset.brand}</span>}
-            {asset.brand && cat && <span> · </span>}
             {cat && <span>{cat.name}</span>}
           </div>
 

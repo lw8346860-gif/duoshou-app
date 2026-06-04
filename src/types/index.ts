@@ -124,6 +124,7 @@ export interface WishlistItem {
   currency: string;
   expectedResidualValue: number;
   targetDailyCost: number;
+  targetDate?: string;
   expectedUseYears: number;
   reason: string;
   cooldownDays: number;
@@ -211,17 +212,16 @@ export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-jewelry', name: '珠宝', icon: 'jewelry', order: 5 },
   { id: 'cat-clothing', name: '服饰', icon: 'clothing', order: 6 },
   { id: 'cat-shoes', name: '鞋履', icon: 'shoes', order: 7 },
-  { id: 'cat-camera', name: '摄影', icon: 'camera', order: 8 },
-  { id: 'cat-gaming', name: '游戏', icon: 'gaming', order: 9 },
-  { id: 'cat-appliance', name: '家电', icon: 'appliance', order: 10 },
-  { id: 'cat-furniture', name: '家具', icon: 'furniture', order: 11 },
-  { id: 'cat-subscription', name: '会员订阅', icon: 'subscription', order: 12 },
-  { id: 'cat-collectible', name: '收藏', icon: 'collectible', order: 13 },
-  { id: 'cat-tool', name: '工具', icon: 'tool', order: 14 },
-  { id: 'cat-office', name: '办公', icon: 'office', order: 15 },
-  { id: 'cat-sports', name: '运动', icon: 'sports', order: 16 },
-  { id: 'cat-other', name: '其他', icon: 'other', order: 17 },
+  { id: 'cat-appliance', name: '家电', icon: 'appliance', order: 8 },
+  { id: 'cat-furniture', name: '家具', icon: 'furniture', order: 9 },
+  { id: 'cat-collectible', name: '收藏', icon: 'collectible', order: 10 },
+  { id: 'cat-tool', name: '工具', icon: 'tool', order: 11 },
+  { id: 'cat-office', name: '办公', icon: 'office', order: 12 },
+  { id: 'cat-sports', name: '运动', icon: 'sports', order: 13 },
+  { id: 'cat-other', name: '其他', icon: 'other', order: 14 },
 ];
+
+export const REMOVED_CATEGORY_IDS = ['cat-camera', 'cat-gaming', 'cat-subscription'];
 
 export const DEFAULT_TAGS: Tag[] = [
   { id: 'tag-freq-use', name: '高频使用', color: '#52c41a' },

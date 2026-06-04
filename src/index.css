@@ -36,7 +36,7 @@
 }
 
 html {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-family: "PingFang SC", "Heiti SC", "Microsoft YaHei", "SimHei", -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -306,12 +306,21 @@ body {
   color: var(--text);
   border: 1px solid transparent;
   font-weight: 700;
+  min-height: 22px;
+  padding: 0.22rem 0.5rem;
+  font-size: 0.68rem;
+  line-height: 1;
 }
 
 .choice-chip-selected {
   background: var(--button);
   color: var(--bg);
   border-color: var(--button);
+}
+
+.choice-chip-selected .category-icon,
+.choice-chip-selected .category-icon-fallback {
+  color: var(--bg);
 }
 
 :root[data-theme="dark"] .choice-chip-selected {
@@ -346,7 +355,10 @@ body {
   color: var(--text);
   border: 1px solid var(--border);
   font-weight: 700;
-  min-height: 30px;
+  min-height: 22px;
+  padding: 0.22rem 0.5rem;
+  font-size: 0.68rem;
+  line-height: 1;
 }
 
 .tag-chip-selected {
@@ -354,6 +366,11 @@ body {
   color: var(--bg);
   border-color: var(--button) !important;
   box-shadow: none;
+}
+
+.tag-chip-selected .tag-color-dot {
+  background: var(--bg) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 70%, transparent);
 }
 
 .tag-color-dot {
@@ -551,6 +568,164 @@ body {
 /* Input styling */
 input, select, textarea {
   font-family: inherit;
+}
+
+.back-button {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-size: 1.25rem;
+  font-weight: 900;
+  box-shadow: var(--shadow-soft);
+}
+
+.field-label {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.section-title {
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.form-input {
+  width: 100%;
+  background: var(--field);
+  color: var(--text);
+  border-radius: 0.78rem;
+  padding: 0.58rem 0.72rem;
+  font-size: 0.78rem;
+  outline: none;
+  border: 1px solid transparent;
+}
+
+.form-input:focus {
+  border-color: var(--accent);
+}
+
+.summary-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem;
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  padding: 0.62rem 0.72rem;
+}
+
+.summary-strip span {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.summary-strip strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.78rem;
+  margin-top: 0.14rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hint-line {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--field));
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.delete-confirm {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-danger {
+  background: var(--button);
+  color: var(--bg);
+  border: 1px solid var(--button);
+  font-weight: 800;
+}
+
+.swipe-row {
+  position: relative;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border-radius: 1rem;
+}
+
+.swipe-row::-webkit-scrollbar {
+  display: none;
+}
+
+.swipe-content {
+  min-width: 100%;
+  scroll-snap-align: start;
+}
+
+.swipe-delete {
+  min-width: 4.4rem;
+  margin-left: 0.5rem;
+  border-radius: 1rem;
+  background: var(--button);
+  color: var(--bg);
+  font-size: 0.75rem;
+  font-weight: 800;
+  scroll-snap-align: end;
+}
+
+.wish-empty-icon {
+  position: relative;
+  width: 4.8rem;
+  height: 4.8rem;
+  border-radius: 1.35rem;
+  background: var(--field);
+  border: 1px solid var(--border);
+}
+
+.wish-empty-icon::before,
+.wish-empty-icon::after {
+  content: "";
+  position: absolute;
+  border-color: var(--text);
+}
+
+.wish-empty-icon::before {
+  width: 2.3rem;
+  height: 2rem;
+  left: 1.25rem;
+  top: 1.42rem;
+  border: 2.2px solid var(--text);
+  border-top: 0;
+  border-radius: 0 0 1.1rem 1.1rem;
+  transform: rotate(-8deg);
+}
+
+.wish-empty-icon::after {
+  width: 1.15rem;
+  height: 1.15rem;
+  left: 1.8rem;
+  top: 1.08rem;
+  border-left: 2.2px solid var(--accent);
+  border-top: 2.2px solid var(--accent);
+  transform: rotate(45deg);
+  border-radius: 0.25rem 0 0 0;
 }
 
 input[type="number"]::-webkit-inner-spin-button,

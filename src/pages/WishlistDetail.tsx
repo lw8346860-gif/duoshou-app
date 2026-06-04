@@ -21,16 +21,16 @@ export default function WishlistDetail() {
   }
 
   const category = categories.find(cat => cat.id === item.categoryId);
-  const requiredDays = calcWishlistDays(item.expectedPrice, item.expectedResidualValue, item.targetDailyCost);
+  const requiredDays = calcWishlistDays(item.expectedPrice, 0, item.targetDailyCost);
   const expectedUseDays = Math.max(1, Math.round(item.expectedUseYears * 365));
-  const expectedDaily = (item.expectedPrice - item.expectedResidualValue) / expectedUseDays;
+  const expectedDaily = item.expectedPrice / expectedUseDays;
   const impulse = calcImpulseLevel(item.cooldownDays, item.expectedPrice + (item.desireLevel >= 5 ? 5001 : 0));
 
   const handleConvert = async () => {
     const assetId = await addAsset({
       name: item.name,
-      brand: item.brand,
-      model: item.model,
+      brand: '',
+      model: '',
       spec: '',
       categoryId: item.categoryId,
       tagIds: item.tagIds,
@@ -39,7 +39,7 @@ export default function WishlistDetail() {
       purchaseDate: new Date().toISOString().split('T')[0],
       purchaseChannel: '',
       currentValue: 0,
-      expectedResidualValue: item.expectedResidualValue,
+      expectedResidualValue: 0,
       targetDailyCost: item.targetDailyCost,
       targetUseDays: requiredDays,
       status: 'active',
@@ -51,7 +51,7 @@ export default function WishlistDetail() {
       soldChannel: null,
       discardedDate: null,
       imageUri: item.imageUri,
-      note: item.note,
+      note: '',
       isExcludedFromTotal: false,
       isExcludedFromDailyAverage: false,
       luxuryInfo: null,
@@ -66,7 +66,7 @@ export default function WishlistDetail() {
   return (
     <div className="space-y-4 pb-8">
       <div className="flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="text-sm text-[#8E8E93]">← 返回</button>
+        <button onClick={() => navigate(-1)} className="back-button">←</button>
         <h1 className="text-lg font-bold text-[#1D1D1F] truncate px-2">{item.name}</h1>
         <button onClick={() => navigate(`/wishlist/${item.id}/edit`)} className="text-sm text-[#1D1D1F] font-semibold">编辑</button>
       </div>
@@ -76,21 +76,14 @@ export default function WishlistDetail() {
           <CategoryIcon category={category} />
         </div>
         <div className="text-xl font-bold text-[#1D1D1F]">{item.name}</div>
-        <div className="text-sm text-[#8E8E93] mt-1">{item.brand && `${item.brand} · `}{item.model}</div>
         <div className="notice-pill inline-flex items-center gap-1 mt-3 px-3 py-1 rounded-full text-xs"><span className="notice-dot" />{impulse}</div>
       </section>
 
       <section className="grid grid-cols-2 gap-3">
         <Metric label="预计价格" value={formatMoney(item.expectedPrice, item.currency)} />
-        <Metric label="预计残值" value={formatMoney(item.expectedResidualValue, item.currency)} />
         <Metric label="需要使用" value={requiredDays > 0 ? formatDays(requiredDays) : '未设置目标'} />
         <Metric label="预计日均" value={formatMoney(expectedDaily, item.currency)} />
-      </section>
-
-      <section className="bg-white rounded-2xl p-4 space-y-2">
-        <div className="text-sm font-semibold text-[#1D1D1F]">购买理由</div>
-        <div className="text-sm text-[#8E8E93] whitespace-pre-wrap">{item.reason || '未填写'}</div>
-        {item.note && <div className="text-sm text-[#8E8E93] whitespace-pre-wrap">{item.note}</div>}
+        <Metric label="目标日期" value={item.targetDate || '未设置'} />
       </section>
 
       <div className="grid grid-cols-2 gap-2">
