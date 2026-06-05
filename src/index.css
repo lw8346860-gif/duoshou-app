@@ -612,6 +612,21 @@ input, select, textarea {
   border-color: var(--accent);
 }
 
+.compact-select {
+  width: min(50%, 9rem);
+  min-width: 7.2rem;
+  background-color: var(--field) !important;
+  color: var(--text);
+  border: 1px solid transparent;
+  padding: 0.42rem 1.8rem 0.42rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.compact-select:focus {
+  border-color: var(--accent);
+}
+
 .summary-strip {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -694,38 +709,36 @@ input, select, textarea {
   position: relative;
   width: 4.8rem;
   height: 4.8rem;
-  border-radius: 1.35rem;
+  border-radius: 1.45rem;
   background: var(--field);
   border: 1px solid var(--border);
+  box-shadow: inset 0 0 0 0.45rem color-mix(in srgb, var(--accent-soft) 42%, transparent);
 }
 
 .wish-empty-icon::before,
 .wish-empty-icon::after {
   content: "";
   position: absolute;
-  border-color: var(--text);
 }
 
 .wish-empty-icon::before {
-  width: 2.3rem;
-  height: 2rem;
-  left: 1.25rem;
-  top: 1.42rem;
-  border: 2.2px solid var(--text);
-  border-top: 0;
-  border-radius: 0 0 1.1rem 1.1rem;
-  transform: rotate(-8deg);
+  width: 1.12rem;
+  height: 1.12rem;
+  left: 1.42rem;
+  top: 1.45rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 1.12rem 0 0 var(--accent);
 }
 
 .wish-empty-icon::after {
-  width: 1.15rem;
-  height: 1.15rem;
-  left: 1.8rem;
-  top: 1.08rem;
-  border-left: 2.2px solid var(--accent);
-  border-top: 2.2px solid var(--accent);
+  width: 1.58rem;
+  height: 1.58rem;
+  left: 1.61rem;
+  top: 1.72rem;
+  border-radius: 0.24rem;
+  background: var(--accent);
   transform: rotate(45deg);
-  border-radius: 0.25rem 0 0 0;
 }
 
 input[type="number"]::-webkit-inner-spin-button,

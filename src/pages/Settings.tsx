@@ -100,22 +100,12 @@ export default function Settings() {
       {/* 基础设置 */}
       <section className="bg-white rounded-2xl p-4 space-y-3">
         <h2 className="text-sm font-semibold text-[#1D1D1F]">基础设置</h2>
-        <div className="summary-strip">
-          <div>
-            <span>货币单位</span>
-            <strong>人民币 CNY</strong>
-          </div>
-          <div>
-            <span>状态</span>
-            <strong>固定</strong>
-          </div>
-        </div>
         <div>
           <label className="text-xs text-[#8E8E93]">小数位数</label>
           <select
             value={settings?.decimalPlaces ?? 2}
             onChange={e => updateSettings({ decimalPlaces: Number(e.target.value) })}
-            className="w-full bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none mt-1"
+            className="compact-select bg-[#F5F5F3] rounded-xl outline-none mt-1"
           >
             <option value={0}>0</option>
             <option value={1}>1</option>
@@ -135,7 +125,7 @@ export default function Settings() {
           <select
             value={settings?.durationDisplay ?? 'auto'}
             onChange={e => updateSettings({ durationDisplay: e.target.value as 'days' | 'months' | 'years' | 'auto' })}
-            className="w-full bg-[#F5F5F3] rounded-xl px-3 py-2 text-sm outline-none mt-1"
+            className="compact-select bg-[#F5F5F3] rounded-xl outline-none mt-1"
           >
             <option value="auto">自动</option>
             <option value="days">天</option>
@@ -350,7 +340,7 @@ export default function Settings() {
       {/* 关于 */}
       <section className="bg-white rounded-2xl p-4 text-center">
         <div className="text-lg font-bold text-[#1D1D1F]">剁手</div>
-        <div className="text-xs text-[#8E8E93] mt-1">v1.0.4</div>
+        <div className="text-xs text-[#8E8E93] mt-1">v1.0.5</div>
         <div className="text-xs text-[#8E8E93] mt-2">买的时候冲动，以后慢慢算账</div>
         <div className="text-[10px] text-[#8E8E93] mt-2">所有数据存储在本地，零服务器、零账号</div>
         <button onClick={() => navigate('/about')} className="mt-3 text-xs text-[#1D1D1F] font-semibold">

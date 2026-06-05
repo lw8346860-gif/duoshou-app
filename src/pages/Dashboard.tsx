@@ -4,7 +4,7 @@ import { useAllAccessories, useAssets } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useSettings';
 import {
   getTotalCost, getDailyCost, getLoss,
-  formatCurrency, getIdleAlertAssets, getNearTargetAssets, getCurrentValue,
+  formatCurrency, getNearTargetAssets, getCurrentValue,
 } from '../utils/calculations';
 import AssetCard from '../components/AssetCard';
 
@@ -54,10 +54,9 @@ export default function Dashboard() {
       .sort((a, b) => a.daily - b.daily);
     const bestValue = withDaily[0]?.asset;
 
-    const idleAlerts = getIdleAlertAssets(assets, allAccessories);
     const nearTarget = getNearTargetAssets(assets, allAccessories);
 
-    return { mostCostlyError, bestValue, idleAlert: idleAlerts[0], nearTarget: nearTarget[0] };
+    return { mostCostlyError, bestValue, nearTarget: nearTarget[0] };
   }, [assets, allAccessories]);
 
   const recentAssets = useMemo(() => assets.slice(0, 5), [assets]);
@@ -131,16 +130,6 @@ export default function Dashboard() {
             <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />最值回票价</div>
             <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.bestValue.name}</div>
             <div className="text-xs text-[#8E8E93]">日均 {formatCurrency(getDailyCost(quickCards.bestValue, allAccessories.filter(acc => acc.assetId === quickCards.bestValue!.id)))}</div>
-          </button>
-        )}
-        {quickCards.idleAlert && (
-          <button
-            onClick={() => navigate(`/assets/${quickCards.idleAlert!.id}`)}
-            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-[#E5E5E5]"
-          >
-            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />闲置警报</div>
-            <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.idleAlert.name}</div>
-            <div className="text-xs text-[#8E8E93]">高价闲置中</div>
           </button>
         )}
         {quickCards.nearTarget && (

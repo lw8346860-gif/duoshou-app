@@ -118,15 +118,10 @@ export default function Wishlist() {
   const otherItems = items.filter(i => i.status !== 'watching');
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-[#1D1D1F]">心愿清单</h1>
-        <button
-          onClick={() => navigate('/wishlist/new')}
-          className="btn-primary px-3 py-1.5 rounded-full text-xs"
-        >
-          + 新心愿
-        </button>
+    <div className="px-4 pt-12 pb-4 space-y-4">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-[#1D1D1F]">心愿列表</h1>
+        <p className="text-xs text-[#8E8E93] mt-1">先放进来，等冲动降温再决定。</p>
       </div>
 
       {/* 观望中的心愿 */}
@@ -171,7 +166,9 @@ export default function Wishlist() {
         <div className="bg-white rounded-3xl p-8 text-center">
           <div className="wish-empty-icon mx-auto mb-3" aria-hidden="true" />
           <div className="text-sm font-bold text-[#1D1D1F]">心愿还空着</div>
-          <div className="text-xs text-[#8E8E93] mt-1">先放进来，等冲动降温再决定。</div>
+          <button onClick={() => navigate('/wishlist/new')} className="btn-secondary mt-4 px-4 py-2 rounded-xl text-xs">
+            添加心愿
+          </button>
         </div>
       )}
     </div>

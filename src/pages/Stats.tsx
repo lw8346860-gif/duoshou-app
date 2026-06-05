@@ -25,13 +25,12 @@ export default function Stats() {
     const totalInvested = assets.filter(a => !a.isExcludedFromTotal).reduce((s, a) => s + getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
     const totalValue = assets.reduce((s, a) => s + getCurrentValue(a), 0);
     const netCost = totalInvested - totalValue;
-    const totalLoss = assets.reduce((s, a) => s + getLoss(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
     const dailyAssets = assets.filter(a => a.status === 'active' && !a.isExcludedFromDailyAverage);
     const avgDaily = dailyAssets.length > 0
       ? dailyAssets.reduce((s, a) => s + getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0) / dailyAssets.length
       : 0;
 
-    return { totalInvested, totalValue, netCost, totalLoss, avgDaily, assetCount: assets.length, wishlistCount: wishlistItems.length };
+    return { totalInvested, totalValue, netCost, avgDaily, assetCount: assets.length, wishlistCount: wishlistItems.length };
   }, [assets, wishlistItems, allAccessories]);
 
   const rankings = useMemo(() => {
@@ -87,7 +86,6 @@ export default function Stats() {
         <StatBox label="资产数量" value={String(stats.assetCount)} />
         <StatBox label="心愿数量" value={String(stats.wishlistCount)} />
         <StatBox label="平均日均" value={formatCurrency(stats.avgDaily)} />
-        <StatBox label="总亏损" value={formatCurrency(stats.totalLoss)} />
       </div>
 
       {/* Tabs */}

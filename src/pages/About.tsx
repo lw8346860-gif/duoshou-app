@@ -16,7 +16,7 @@ export default function About() {
         </div>
         <div className="text-2xl font-bold text-[#1D1D1F]">剁手</div>
         <div className="text-sm text-[#8E8E93] mt-2">买的时候冲动，以后慢慢算账。</div>
-        <div className="text-xs text-[#8E8E93] mt-2">v1.0.4</div>
+        <div className="text-xs text-[#8E8E93] mt-2">v1.0.5</div>
       </section>
       <section className="bg-white rounded-2xl p-4 text-sm text-[#8E8E93] leading-6">
         这是一个本地优先的个人消费资产管理 PWA。它不需要账号，不连接服务器，不上传资产、价格、备注或标签数据。所有核心数据保存在当前浏览器的 IndexedDB 中。
