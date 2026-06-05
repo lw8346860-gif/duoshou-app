@@ -22,6 +22,7 @@ export default function Settings() {
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#D97706');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [openPicker, setOpenPicker] = useState<'decimal' | 'duration' | null>(null);
 
   // 初始化默认数据
   const handleInitDefaults = async () => {
@@ -94,7 +95,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="page-safe space-y-4">
       <h1 className="text-xl font-bold text-[#1D1D1F]">设置</h1>
 
       {/* 基础设置 */}
@@ -102,15 +103,17 @@ export default function Settings() {
         <h2 className="text-sm font-semibold text-[#1D1D1F]">基础设置</h2>
         <div>
           <label className="text-xs text-[#8E8E93]">小数位数</label>
-          <select
-            value={settings?.decimalPlaces ?? 2}
-            onChange={e => updateSettings({ decimalPlaces: Number(e.target.value) })}
-            className="compact-select bg-[#F5F5F3] rounded-xl outline-none mt-1"
-          >
-            <option value={0}>0</option>
-            <option value={1}>1</option>
-            <option value={2}>2</option>
-          </select>
+          <SettingPicker
+            open={openPicker === 'decimal'}
+            value={`${settings?.decimalPlaces ?? 2} 位`}
+            options={[
+              { label: '0', onClick: () => updateSettings({ decimalPlaces: 0 }) },
+              { label: '1', onClick: () => updateSettings({ decimalPlaces: 1 }) },
+              { label: '2', onClick: () => updateSettings({ decimalPlaces: 2 }) },
+            ]}
+            onToggle={() => setOpenPicker(openPicker === 'decimal' ? null : 'decimal')}
+            onClose={() => setOpenPicker(null)}
+          />
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-[#1D1D1F]">千位分隔符</span>
@@ -122,16 +125,18 @@ export default function Settings() {
         </div>
         <div>
           <label className="text-xs text-[#8E8E93]">时长显示</label>
-          <select
-            value={settings?.durationDisplay ?? 'auto'}
-            onChange={e => updateSettings({ durationDisplay: e.target.value as 'days' | 'months' | 'years' | 'auto' })}
-            className="compact-select bg-[#F5F5F3] rounded-xl outline-none mt-1"
-          >
-            <option value="auto">自动</option>
-            <option value="days">天</option>
-            <option value="months">月</option>
-            <option value="years">年</option>
-          </select>
+          <SettingPicker
+            open={openPicker === 'duration'}
+            value={({ auto: '自动', days: '天', months: '月', years: '年' } as const)[settings?.durationDisplay ?? 'auto']}
+            options={[
+              { label: '自动', onClick: () => updateSettings({ durationDisplay: 'auto' }) },
+              { label: '天', onClick: () => updateSettings({ durationDisplay: 'days' }) },
+              { label: '月', onClick: () => updateSettings({ durationDisplay: 'months' }) },
+              { label: '年', onClick: () => updateSettings({ durationDisplay: 'years' }) },
+            ]}
+            onToggle={() => setOpenPicker(openPicker === 'duration' ? null : 'duration')}
+            onClose={() => setOpenPicker(null)}
+          />
         </div>
         <div>
           <label className="text-xs text-[#8E8E93]">显示模式</label>
@@ -340,13 +345,53 @@ export default function Settings() {
       {/* 关于 */}
       <section className="bg-white rounded-2xl p-4 text-center">
         <div className="text-lg font-bold text-[#1D1D1F]">剁手</div>
-        <div className="text-xs text-[#8E8E93] mt-1">v1.0.5</div>
+        <div className="text-xs text-[#8E8E93] mt-1">v1.0.6</div>
         <div className="text-xs text-[#8E8E93] mt-2">买的时候冲动，以后慢慢算账</div>
         <div className="text-[10px] text-[#8E8E93] mt-2">所有数据存储在本地，零服务器、零账号</div>
         <button onClick={() => navigate('/about')} className="mt-3 text-xs text-[#1D1D1F] font-semibold">
           查看关于
         </button>
       </section>
+    </div>
+  );
+}
+
+function SettingPicker({
+  open,
+  value,
+  options,
+  onToggle,
+  onClose,
+}: {
+  open: boolean;
+  value: string;
+  options: Array<{ label: string; onClick: () => void }>;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="settings-picker">
+      <button onClick={onToggle} className="settings-picker-trigger" type="button">
+        {value}
+        <span>⌄</span>
+      </button>
+      {open && (
+        <div className="settings-picker-menu">
+          {options.map(option => (
+            <button
+              key={option.label}
+              onClick={() => {
+                option.onClick();
+                onClose();
+              }}
+              className="settings-picker-option"
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

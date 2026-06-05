@@ -64,7 +64,7 @@ export default function WishlistDetail() {
   };
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="page-safe space-y-4 pb-8">
       <div className="flex items-center justify-between">
         <button onClick={() => navigate(-1)} className="back-button">←</button>
         <h1 className="text-lg font-bold text-[#1D1D1F] truncate px-2">{item.name}</h1>

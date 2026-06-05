@@ -162,7 +162,7 @@ export default function AssetForm() {
   };
 
   return (
-    <div className="space-y-3 pb-8">
+    <div className="page-safe space-y-3 pb-8">
       <div className="flex items-center justify-between">
         <button onClick={() => navigate(-1)} className="back-button">←</button>
         <h1 className="text-base font-bold text-[#1D1D1F]">{id ? '编辑资产' : '新增资产'}</h1>

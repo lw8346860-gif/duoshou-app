@@ -570,9 +570,13 @@ input, select, textarea {
   font-family: inherit;
 }
 
+.page-safe {
+  padding: max(0.75rem, env(safe-area-inset-top)) 1rem 2rem;
+}
+
 .back-button {
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 3.5rem;
+  height: 3.5rem;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -580,9 +584,10 @@ input, select, textarea {
   color: var(--text);
   background: var(--card);
   border: 1px solid var(--border);
-  font-size: 1.25rem;
+  font-size: 1.85rem;
   font-weight: 900;
   box-shadow: var(--shadow-soft);
+  margin-top: 0.35rem;
 }
 
 .field-label {
@@ -625,6 +630,54 @@ input, select, textarea {
 
 .compact-select:focus {
   border-color: var(--accent);
+}
+
+.settings-picker {
+  position: relative;
+  margin-top: 0.25rem;
+  width: min(50%, 9rem);
+  min-width: 7.2rem;
+}
+
+.settings-picker-trigger {
+  width: 100%;
+  min-height: 1.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 0.75rem;
+  background: var(--field);
+  color: var(--text);
+  border: 1px solid transparent;
+  padding: 0.38rem 0.62rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.settings-picker-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.3rem);
+  width: 100%;
+  z-index: 60;
+  border-radius: 0.8rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 0.22rem;
+}
+
+.settings-picker-option {
+  width: 100%;
+  min-height: 1.45rem;
+  border-radius: 0.58rem;
+  color: var(--text);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.settings-picker-option:active {
+  background: var(--field);
 }
 
 .summary-strip {
@@ -706,39 +759,27 @@ input, select, textarea {
 }
 
 .wish-empty-icon {
-  position: relative;
   width: 4.8rem;
   height: 4.8rem;
   border-radius: 1.45rem;
   background: var(--field);
   border: 1px solid var(--border);
   box-shadow: inset 0 0 0 0.45rem color-mix(in srgb, var(--accent-soft) 42%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.wish-empty-icon::before,
-.wish-empty-icon::after {
-  content: "";
-  position: absolute;
+.wish-empty-icon svg {
+  width: 3.25rem;
+  height: 3.25rem;
 }
 
-.wish-empty-icon::before {
-  width: 1.12rem;
-  height: 1.12rem;
-  left: 1.42rem;
-  top: 1.45rem;
-  border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 1.12rem 0 0 var(--accent);
-}
-
-.wish-empty-icon::after {
-  width: 1.58rem;
-  height: 1.58rem;
-  left: 1.61rem;
-  top: 1.72rem;
-  border-radius: 0.24rem;
-  background: var(--accent);
-  transform: rotate(45deg);
+.wish-empty-icon path {
+  stroke: var(--text);
+  stroke-width: 3.2;
+  stroke-linejoin: round;
+  fill: color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 input[type="number"]::-webkit-inner-spin-button,

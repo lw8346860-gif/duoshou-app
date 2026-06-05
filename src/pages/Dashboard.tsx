@@ -117,7 +117,7 @@ export default function Dashboard() {
             onClick={() => navigate(`/assets/${quickCards.mostCostlyError!.id}`)}
             className="bg-white rounded-2xl p-4 text-left shadow-sm border border-[#E5E5E5]"
           >
-            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />最贵错误</div>
+            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />最贵消费</div>
             <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.mostCostlyError.name}</div>
             <div className="text-xs text-[#8E8E93]">亏损 {formatCurrency(getLoss(quickCards.mostCostlyError, allAccessories.filter(acc => acc.assetId === quickCards.mostCostlyError!.id)))}</div>
           </button>

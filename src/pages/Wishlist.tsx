@@ -164,7 +164,11 @@ export default function Wishlist() {
 
       {items.length === 0 && (
         <div className="bg-white rounded-3xl p-8 text-center">
-          <div className="wish-empty-icon mx-auto mb-3" aria-hidden="true" />
+          <div className="wish-empty-icon mx-auto mb-3" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none">
+              <path d="M32 52C21.4 43.4 14 36.5 14 27.2C14 20.4 18.8 16 24.7 16C28.3 16 30.8 17.7 32 20.2C33.2 17.7 35.7 16 39.3 16C45.2 16 50 20.4 50 27.2C50 36.5 42.6 43.4 32 52Z" />
+            </svg>
+          </div>
           <div className="text-sm font-bold text-[#1D1D1F]">心愿还空着</div>
           <button onClick={() => navigate('/wishlist/new')} className="btn-secondary mt-4 px-4 py-2 rounded-xl text-xs">
             添加心愿
