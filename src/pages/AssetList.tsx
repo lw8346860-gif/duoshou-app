@@ -6,7 +6,7 @@ import type { AssetStatus } from '../types';
 import { REMOVED_CATEGORY_IDS, STATUS_LABELS } from '../types';
 import AssetCard from '../components/AssetCard';
 import CategoryIcon from '../components/CategoryIcon';
-import { getDailyCost, getLoss, getRetentionRate, getUsedDays } from '../utils/calculations';
+import { getDailyNetHoldingCost, getLoss, getRetentionRate, getUsedDays } from '../utils/calculations';
 
 type SortKey = 'updatedAt' | 'purchaseDate' | 'purchasePrice' | 'dailyCost' | 'loss' | 'usedDays' | 'retention';
 
@@ -50,7 +50,7 @@ export default function AssetList() {
       switch (sortBy) {
         case 'purchaseDate': return b.purchaseDate.localeCompare(a.purchaseDate);
         case 'purchasePrice': return b.purchasePrice - a.purchasePrice;
-        case 'dailyCost': return getDailyCost(b, allAccessories.filter(acc => acc.assetId === b.id)) - getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id));
+        case 'dailyCost': return getDailyNetHoldingCost(b, allAccessories.filter(acc => acc.assetId === b.id)) - getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id));
         case 'loss': return getLoss(b, allAccessories.filter(acc => acc.assetId === b.id)) - getLoss(a, allAccessories.filter(acc => acc.assetId === a.id));
         case 'usedDays': return getUsedDays(b) - getUsedDays(a);
         case 'retention': return getRetentionRate(b, allAccessories.filter(acc => acc.assetId === b.id)) - getRetentionRate(a, allAccessories.filter(acc => acc.assetId === a.id));
@@ -125,7 +125,7 @@ export default function AssetList() {
                 { key: 'updatedAt' as SortKey, label: '最近更新' },
                 { key: 'purchaseDate' as SortKey, label: '购买日期' },
                 { key: 'purchasePrice' as SortKey, label: '价格' },
-                { key: 'dailyCost' as SortKey, label: '日均成本' },
+                { key: 'dailyCost' as SortKey, label: '日均净成本' },
                 { key: 'loss' as SortKey, label: '亏损' },
                 { key: 'usedDays' as SortKey, label: '使用天数' },
                 { key: 'retention' as SortKey, label: '保值率' },
@@ -154,8 +154,8 @@ export default function AssetList() {
         ))}
         {filtered.length === 0 && (
           <div className="text-center py-12 text-[#8E8E93]">
-            <div className="category-icon text-4xl mb-2 mx-auto"><span className="category-icon-fallback">剁</span></div>
-            <div>{search ? '没有找到匹配的资产' : '还没有资产'}</div>
+            <div className="empty-orbit-icon mb-3 mx-auto" aria-hidden="true" />
+            <div>{search ? '没有找到匹配的资产' : '还没有长期资产'}</div>
           </div>
         )}
       </div>

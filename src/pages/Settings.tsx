@@ -63,7 +63,7 @@ export default function Settings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `剁手备份_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `年轮备份_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -96,7 +96,7 @@ export default function Settings() {
 
   return (
     <div className="page-safe space-y-4">
-      <h1 className="text-xl font-bold text-[#1D1D1F]">设置</h1>
+      <h1 className="text-2xl font-bold text-[#1D1D1F]">设置</h1>
 
       {/* 基础设置 */}
       <section className="bg-white rounded-2xl p-4 space-y-3">
@@ -146,7 +146,7 @@ export default function Settings() {
               { key: 'dark' as const, label: '黑夜' },
               { key: 'system' as const, label: '跟随' },
             ].map(option => {
-              const active = (settings?.themeMode ?? settings?.theme ?? 'light') === option.key;
+              const active = (settings?.themeMode ?? settings?.theme ?? 'dark') === option.key;
               return (
                 <button
                   key={option.key}
@@ -344,9 +344,9 @@ export default function Settings() {
 
       {/* 关于 */}
       <section className="bg-white rounded-2xl p-4 text-center">
-        <div className="text-lg font-bold text-[#1D1D1F]">剁手</div>
-        <div className="text-xs text-[#8E8E93] mt-1">v1.0.6</div>
-        <div className="text-xs text-[#8E8E93] mt-2">买的时候冲动，以后慢慢算账</div>
+        <div className="text-lg font-bold text-[#1D1D1F]">年轮</div>
+        <div className="text-xs text-[#8E8E93] mt-1">v1.0.7</div>
+        <div className="text-xs text-[#8E8E93] mt-2">长期资产，慢慢长出自己的时间刻度</div>
         <div className="text-[10px] text-[#8E8E93] mt-2">所有数据存储在本地，零服务器、零账号</div>
         <button onClick={() => navigate('/about')} className="mt-3 text-xs text-[#1D1D1F] font-semibold">
           查看关于

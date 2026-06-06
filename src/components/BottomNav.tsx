@@ -4,7 +4,6 @@ const tabs = [
   { path: '/', label: '首页', icon: 'home' },
   { path: '/assets', label: '资产', icon: 'assets' },
   { path: '/wishlist', label: '心愿', icon: 'wishlist' },
-  { path: '/stats', label: '统计', icon: 'stats' },
   { path: '/settings', label: '设置', icon: 'settings' },
 ];
 

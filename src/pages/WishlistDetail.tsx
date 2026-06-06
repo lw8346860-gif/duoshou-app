@@ -25,6 +25,8 @@ export default function WishlistDetail() {
   const expectedUseDays = Math.max(1, Math.round(item.expectedUseYears * 365));
   const expectedDaily = item.expectedPrice / expectedUseDays;
   const impulse = calcImpulseLevel(item.cooldownDays, item.expectedPrice + (item.desireLevel >= 5 ? 5001 : 0));
+  const monthlyIncome = item.hasIncome ? Math.max(0, item.monthlyIncome ?? 0) : 0;
+  const monthlyCost = Math.max(0, item.monthlyCost ?? 0);
 
   const handleConvert = async () => {
     const assetId = await addAsset({
@@ -42,6 +44,11 @@ export default function WishlistDetail() {
       expectedResidualValue: 0,
       targetDailyCost: item.targetDailyCost,
       targetUseDays: requiredDays,
+      hasIncome: item.hasIncome,
+      monthlyIncome: item.monthlyIncome,
+      incomeNote: item.incomeNote,
+      monthlyCost: item.monthlyCost,
+      costNote: item.costNote,
       status: 'active',
       lastUsedDate: '',
       useCount: 0,
@@ -84,6 +91,12 @@ export default function WishlistDetail() {
         <Metric label="需要使用" value={requiredDays > 0 ? formatDays(requiredDays) : '未设置目标'} />
         <Metric label="预计日均" value={formatMoney(expectedDaily, item.currency)} />
         <Metric label="目标日期" value={item.targetDate || '未设置'} />
+        {(monthlyIncome > 0 || monthlyCost > 0) && (
+          <>
+            <Metric label="预计月收入" value={formatMoney(monthlyIncome, item.currency)} />
+            <Metric label="预计月成本" value={formatMoney(monthlyCost, item.currency)} />
+          </>
+        )}
       </section>
 
       <div className="grid grid-cols-2 gap-2">

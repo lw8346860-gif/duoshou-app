@@ -25,7 +25,7 @@ export default function App() {
   }, [initCats, initTags]);
 
   useEffect(() => {
-    const mode = settings?.themeMode ?? settings?.theme ?? 'light';
+    const mode = settings?.themeMode ?? settings?.theme ?? 'dark';
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const resolved = mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode;
     document.documentElement.dataset.theme = resolved;

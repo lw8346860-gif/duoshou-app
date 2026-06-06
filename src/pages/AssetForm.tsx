@@ -23,9 +23,16 @@ const emptyForm: FormData = {
   purchaseDate: todayString(),
   purchaseChannel: '',
   currentValue: 0,
+  valuationMode: 'none',
+  annualDepreciationRate: 0,
   expectedResidualValue: 0,
   targetDailyCost: 0,
   targetUseDays: 0,
+  hasIncome: false,
+  monthlyIncome: 0,
+  incomeNote: '',
+  monthlyCost: 0,
+  costNote: '',
   status: 'active',
   lastUsedDate: '',
   useCount: 0,
@@ -79,6 +86,8 @@ export default function AssetForm() {
         spec: '',
         purchaseChannel: '',
         expectedResidualValue: 0,
+        valuationMode: rest.valuationMode ?? 'depreciation',
+        annualDepreciationRate: rest.annualDepreciationRate ?? 0.3,
         imageUri: null,
         note: '',
       });
@@ -93,8 +102,10 @@ export default function AssetForm() {
   const visibleCategory = categories.some(cat => cat.id === form.categoryId) ? form.categoryId : 'cat-other';
   const manualValue = form.currentValue > 0;
   const estimatedValue = useMemo(
-    () => estimateDepreciatedValue(form.purchasePrice, form.purchaseDate),
-    [form.purchasePrice, form.purchaseDate],
+    () => form.valuationMode === 'depreciation'
+      ? estimateDepreciatedValue(form.purchasePrice, form.purchaseDate, form.annualDepreciationRate ?? 0.3)
+      : form.purchasePrice,
+    [form.annualDepreciationRate, form.purchasePrice, form.purchaseDate, form.valuationMode],
   );
   const effectiveValue = manualValue ? form.currentValue : estimatedValue;
   const netCost = Math.max(0, form.purchasePrice - effectiveValue);
@@ -132,9 +143,16 @@ export default function AssetForm() {
       currency: 'CNY',
       purchaseChannel: '',
       currentValue: manualValue ? form.currentValue : 0,
+      valuationMode: form.valuationMode ?? 'none',
+      annualDepreciationRate: form.valuationMode === 'depreciation' ? Math.min(1, Math.max(0, form.annualDepreciationRate ?? 0)) : 0,
       expectedResidualValue: 0,
       targetDailyCost: Number.isFinite(targetDailyCost) ? Number(targetDailyCost.toFixed(2)) : 0,
       targetUseDays: Number.isFinite(targetUseDays) ? Math.max(0, Math.ceil(targetUseDays)) : 0,
+      hasIncome: Boolean(form.hasIncome && (form.monthlyIncome ?? 0) > 0),
+      monthlyIncome: form.hasIncome ? Math.max(0, form.monthlyIncome ?? 0) : 0,
+      incomeNote: form.hasIncome ? (form.incomeNote ?? '').trim() : '',
+      monthlyCost: Math.max(0, form.monthlyCost ?? 0),
+      costNote: (form.costNote ?? '').trim(),
       retiredDate: form.status === 'retired' ? (form.retiredDate ?? todayString()) : null,
       soldDate: null,
       soldPrice: null,
@@ -163,20 +181,21 @@ export default function AssetForm() {
 
   return (
     <div className="page-safe space-y-3 pb-8">
-      <div className="flex items-center justify-between">
+      <div className="form-header">
         <button onClick={() => navigate(-1)} className="back-button">←</button>
-        <h1 className="text-base font-bold text-[#1D1D1F]">{id ? '编辑资产' : '新增资产'}</h1>
-        <div className="w-10" />
+        <h1 className="form-page-title">{id ? '编辑资产' : '新增资产'}</h1>
+        <div className="form-header-spacer" />
       </div>
 
       <section className="bg-white rounded-2xl p-3 space-y-2.5">
         <label className="field-label">名称</label>
         <input
-          placeholder="例如 Mac mini、Model 3、腕表"
+          placeholder="预计持有 1 年以上的资产"
           value={form.name}
           onChange={e => setField('name', e.target.value)}
           className="form-input"
         />
+        <div className="hint-line">适合记录房产、股票、车位、汽车、数码、收藏等长期持有资产。</div>
       </section>
 
       <section className="bg-white rounded-2xl p-3 space-y-2.5">
@@ -246,6 +265,22 @@ export default function AssetForm() {
       <section className="bg-white rounded-2xl p-3 space-y-2.5">
         <h2 className="section-title">估值目标</h2>
         <div className="grid grid-cols-3 gap-2">
+          {[
+            { key: 'none' as const, label: '不折旧' },
+            { key: 'manual' as const, label: '手动估值' },
+            { key: 'depreciation' as const, label: '年折旧' },
+          ].map(option => (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setField('valuationMode', option.key)}
+              className={`choice-chip rounded-full ${form.valuationMode === option.key ? 'choice-chip-selected' : ''}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-2">
           <label className="field-label">
             当前估值
             <input
@@ -284,6 +319,20 @@ export default function AssetForm() {
               className="form-input mt-1"
             />
           </label>
+          {form.valuationMode === 'depreciation' && (
+            <label className="field-label col-span-3">
+              年折旧率
+              <input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="例如 30"
+                value={((form.annualDepreciationRate ?? 0) * 100) || ''}
+                onChange={e => setField('annualDepreciationRate', Number(e.target.value) / 100)}
+                className="form-input mt-1"
+              />
+            </label>
+          )}
         </div>
         <div className="summary-strip">
           <div>
@@ -291,7 +340,7 @@ export default function AssetForm() {
             <strong>{formatMoney(effectiveValue, 'CNY')}</strong>
           </div>
           <div>
-            <span>{manualValue ? '手动填写' : '按年 30% 折旧'}</span>
+            <span>{manualValue ? '手动填写' : form.valuationMode === 'depreciation' ? `年折旧 ${Math.round((form.annualDepreciationRate ?? 0) * 100)}%` : '不自动折旧'}</span>
             <strong>{usedDays > 0 ? `${usedDays} 天` : '未开始'}</strong>
           </div>
         </div>
@@ -337,6 +386,66 @@ export default function AssetForm() {
             />
           </label>
         )}
+      </section>
+
+      <section className="bg-white rounded-2xl p-3 space-y-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="section-title">现金流</h2>
+            <p className="field-label mt-1">按月填写，系统自动换算日 / 周 / 年。</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setField('hasIncome', !form.hasIncome)}
+            className={`choice-chip rounded-full ${form.hasIncome ? 'choice-chip-selected' : ''}`}
+          >
+            {form.hasIncome ? '有现金流' : '无现金流'}
+          </button>
+        </div>
+        {form.hasIncome && (
+          <div className="grid grid-cols-2 gap-2">
+            <label className="field-label">
+              月收入
+              <input
+                type="number"
+                placeholder="例如租金/分红"
+                value={form.monthlyIncome || ''}
+                onChange={e => setField('monthlyIncome', Number(e.target.value))}
+                className="form-input mt-1"
+              />
+            </label>
+            <label className="field-label">
+              收益说明
+              <input
+                placeholder="租金、股息等"
+                value={form.incomeNote ?? ''}
+                onChange={e => setField('incomeNote', e.target.value)}
+                className="form-input mt-1"
+              />
+            </label>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <label className="field-label">
+            月成本
+            <input
+              type="number"
+              placeholder="房产物业/维护"
+              value={form.monthlyCost || ''}
+              onChange={e => setField('monthlyCost', Number(e.target.value))}
+              className="form-input mt-1"
+            />
+          </label>
+          <label className="field-label">
+            成本说明
+            <input
+              placeholder="可不填"
+              value={form.costNote ?? ''}
+              onChange={e => setField('costNote', e.target.value)}
+              className="form-input mt-1"
+            />
+          </label>
+        </div>
       </section>
 
       <div className="form-action-bar sticky bottom-20 z-30 -mx-1 rounded-2xl p-2 backdrop-blur">

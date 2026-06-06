@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { useAsset, useAssetAccessories, useAssetUsageRecords, useAssetMutations, useBackup, useUsageRecordMutations } from '../hooks/useLiveQuery';
+import { useAsset, useAssetAccessories, useAssetUsageRecords, useAssetMutations, useBackup, useUsageRecordMutations, useCategories } from '../hooks/useLiveQuery';
 import { calcAssetMetrics, formatMoney, formatDays, getCurrentValue } from '../utils/calculations';
 import { STATUS_LABELS, ACCESSORY_TYPE_LABELS } from '../types';
+import CategoryIcon from '../components/CategoryIcon';
 
 export default function AssetDetail() {
   const { id } = useParams();
@@ -10,6 +11,7 @@ export default function AssetDetail() {
   const asset = useAsset(id);
   const accessories = useAssetAccessories(id);
   const usageRecords = useAssetUsageRecords(id);
+  const categories = useCategories();
   const { remove } = useAssetMutations();
   const { update } = useAssetMutations();
   const { createSnapshot } = useBackup();
@@ -29,6 +31,8 @@ export default function AssetDetail() {
   }
 
   const metrics = calcAssetMetrics(asset, accessories);
+  const isNetIncome = metrics.dailyNetHoldingCost < 0;
+  const category = categories.find(cat => cat.id === asset.categoryId);
 
   const handleDelete = async () => {
     await createSnapshot(`删除「${asset.name}」前自动备份`);
@@ -80,11 +84,11 @@ export default function AssetDetail() {
 
       {/* 资产头像 */}
       <div className="bg-white rounded-3xl p-6 text-center">
-        <div className="w-20 h-20 bg-[#F5F5F3] rounded-2xl flex items-center justify-center text-4xl mx-auto mb-3">
+        <div className="asset-cover asset-cover-large mx-auto mb-3">
           {asset.imageUri ? (
             <img src={asset.imageUri} alt="" className="w-full h-full object-cover rounded-2xl" />
           ) : (
-            <span className="category-icon text-4xl"><span className="category-icon-fallback">剁</span></span>
+            <CategoryIcon category={category} />
           )}
         </div>
         <h2 className="text-xl font-bold text-[#1D1D1F]">{asset.name}</h2>
@@ -135,8 +139,8 @@ export default function AssetDetail() {
             <div className="text-[10px] text-[#8E8E93]">日均成本</div>
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3">
-            <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.loss, asset.currency)}</div>
-            <div className="text-[10px] text-[#8E8E93]">亏损</div>
+            <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(Math.abs(metrics.dailyNetHoldingCost), asset.currency)}</div>
+            <div className="text-[10px] text-[#8E8E93]">{isNetIncome ? '日均净收益' : '日均净成本'}</div>
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3 col-span-2">
             <div className="text-lg font-bold text-[#1D1D1F]">{(metrics.retainRate * 100).toFixed(1)}%</div>
@@ -152,6 +156,30 @@ export default function AssetDetail() {
           </div>
         </div>
       </div>
+
+      {(metrics.monthlyIncome > 0 || metrics.monthlyCost > 0) && (
+        <div className="bg-white rounded-2xl p-4">
+          <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">现金流</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-[#F5F5F3] rounded-xl p-3">
+              <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.monthlyIncome, asset.currency)}</div>
+              <div className="text-[10px] text-[#8E8E93]">月收入</div>
+            </div>
+            <div className="bg-[#F5F5F3] rounded-xl p-3">
+              <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.monthlyCost, asset.currency)}</div>
+              <div className="text-[10px] text-[#8E8E93]">月成本</div>
+            </div>
+            <div className="bg-[#F5F5F3] rounded-xl p-3">
+              <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.totalIncome, asset.currency)}</div>
+              <div className="text-[10px] text-[#8E8E93]">累计收入</div>
+            </div>
+            <div className="bg-[#F5F5F3] rounded-xl p-3">
+              <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.netHoldingCost, asset.currency)}</div>
+              <div className="text-[10px] text-[#8E8E93]">净持有成本</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 成本测算区 */}
       <div className="bg-white rounded-2xl p-4">
@@ -176,8 +204,8 @@ export default function AssetDetail() {
             <span className="text-[#1D1D1F]">{formatMoney(getCurrentValue(asset), asset.currency)}</span>
           </div>
           <div className="border-t border-gray-100 pt-2 flex justify-between text-sm font-bold">
-            <span className="text-[#1D1D1F]">净成本</span>
-            <span className="text-[#1D1D1F]">{formatMoney(metrics.netCost, asset.currency)}</span>
+            <span className="text-[#1D1D1F]">净持有成本</span>
+            <span className="text-[#1D1D1F]">{formatMoney(metrics.netHoldingCost, asset.currency)}</span>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-gray-100">
@@ -185,7 +213,7 @@ export default function AssetDetail() {
             <div key={days} className="bg-[#F5F5F3] rounded-xl p-2">
               <div className="text-xs text-[#8E8E93]">继续使用 {days} 天</div>
               <div className="text-sm font-bold text-[#1D1D1F]">
-                {formatMoney(metrics.netCost / Math.max(1, metrics.usedDays + days), asset.currency)}/天
+                {formatMoney(metrics.netHoldingCost / Math.max(1, metrics.usedDays + days), asset.currency)}/天
               </div>
             </div>
           ))}

@@ -25,6 +25,11 @@ const emptyForm: FormState = {
   expectedResidualValue: 0,
   targetDailyCost: 0,
   targetDate: '',
+  hasIncome: false,
+  monthlyIncome: 0,
+  incomeNote: '',
+  monthlyCost: 0,
+  costNote: '',
   expectedUseYears: 1,
   reason: '',
   cooldownDays: 0,
@@ -97,6 +102,11 @@ export default function WishlistForm() {
       expectedResidualValue: 0,
       targetDailyCost: Number.isFinite(targetDailyCost) ? Number(targetDailyCost.toFixed(2)) : 0,
       targetDate: targetDate || '',
+      hasIncome: Boolean(form.hasIncome && (form.monthlyIncome ?? 0) > 0),
+      monthlyIncome: form.hasIncome ? Math.max(0, form.monthlyIncome ?? 0) : 0,
+      incomeNote: form.hasIncome ? (form.incomeNote ?? '').trim() : '',
+      monthlyCost: Math.max(0, form.monthlyCost ?? 0),
+      costNote: (form.costNote ?? '').trim(),
       expectedUseYears: targetDays > 0 ? Number((targetDays / 365).toFixed(2)) : 0,
       reason: '',
       cooldownDays: 0,
@@ -121,20 +131,21 @@ export default function WishlistForm() {
 
   return (
     <div className="page-safe space-y-3 pb-8">
-      <div className="flex items-center justify-between">
+      <div className="form-header">
         <button onClick={() => navigate(-1)} className="back-button">←</button>
-        <h1 className="text-base font-bold text-[#1D1D1F]">{id ? '编辑心愿' : '新增心愿'}</h1>
-        <div className="w-10" />
+        <h1 className="form-page-title">{id ? '编辑心愿' : '新增心愿'}</h1>
+        <div className="form-header-spacer" />
       </div>
 
       <section className="bg-white rounded-2xl p-3 space-y-2.5">
         <label className="field-label">名称</label>
         <input
-          placeholder="想买什么"
+          placeholder="想纳入年轮的长期资产"
           value={form.name}
           onChange={e => setField('name', e.target.value)}
           className="form-input"
         />
+        <div className="hint-line">建议只放预计持有 1 年以上的资产或心愿。</div>
       </section>
 
       <section className="bg-white rounded-2xl p-3 space-y-2.5">
@@ -217,6 +228,55 @@ export default function WishlistForm() {
             );
           })}
         </div>
+      </section>
+
+      <section className="bg-white rounded-2xl p-3 space-y-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="section-title">现金流预估</h2>
+            <p className="field-label mt-1">月收入可自动换算到日 / 周 / 年。</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setField('hasIncome', !form.hasIncome)}
+            className={`choice-chip rounded-full ${form.hasIncome ? 'choice-chip-selected' : ''}`}
+          >
+            {form.hasIncome ? '有现金流' : '无现金流'}
+          </button>
+        </div>
+        {form.hasIncome && (
+          <div className="grid grid-cols-2 gap-2">
+            <label className="field-label">
+              预计月收入
+              <input
+                type="number"
+                placeholder="租金/分红"
+                value={form.monthlyIncome || ''}
+                onChange={e => setField('monthlyIncome', Number(e.target.value))}
+                className="form-input mt-1"
+              />
+            </label>
+            <label className="field-label">
+              收益说明
+              <input
+                placeholder="可不填"
+                value={form.incomeNote ?? ''}
+                onChange={e => setField('incomeNote', e.target.value)}
+                className="form-input mt-1"
+              />
+            </label>
+          </div>
+        )}
+        <label className="field-label block">
+          预计月成本
+          <input
+            type="number"
+            placeholder="主要用于房产维护"
+            value={form.monthlyCost || ''}
+            onChange={e => setField('monthlyCost', Number(e.target.value))}
+            className="form-input mt-1"
+          />
+        </label>
       </section>
 
       <div className="form-action-bar sticky bottom-20 z-30 -mx-1 rounded-2xl p-2 backdrop-blur">

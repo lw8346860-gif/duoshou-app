@@ -139,10 +139,12 @@ export function useCategories() {
 
 export function useCategoryMutations() {
   const initDefaults = useCallback(async () => {
-    const count = await db.categories.count();
-    if (count === 0) {
-      const now = new Date().toISOString();
-      await db.categories.bulkAdd(DEFAULT_CATEGORIES.map(cat => ({
+    const now = new Date().toISOString();
+    const existing = await db.categories.toArray();
+    const existingIds = new Set(existing.map(cat => cat.id));
+    const missing = DEFAULT_CATEGORIES.filter(cat => !existingIds.has(cat.id));
+    if (missing.length > 0) {
+      await db.categories.bulkAdd(missing.map(cat => ({
         ...cat,
         sortOrder: cat.order,
         isDefault: true,
@@ -181,10 +183,12 @@ export function useTags() {
 
 export function useTagMutations() {
   const initDefaults = useCallback(async () => {
-    const count = await db.tags.count();
-    if (count === 0) {
-      const now = new Date().toISOString();
-      await db.tags.bulkAdd(DEFAULT_TAGS.map(tag => ({ ...tag, createdAt: now, updatedAt: now })));
+    const now = new Date().toISOString();
+    const existing = await db.tags.toArray();
+    const existingIds = new Set(existing.map(tag => tag.id));
+    const missing = DEFAULT_TAGS.filter(tag => !existingIds.has(tag.id));
+    if (missing.length > 0) {
+      await db.tags.bulkAdd(missing.map(tag => ({ ...tag, createdAt: now, updatedAt: now })));
     }
   }, []);
 
@@ -226,7 +230,7 @@ export function useSettingsMutations() {
         theme: 'system',
         useThousandsSeparator: true,
         durationDisplayMode: 'daysAndDate',
-        themeMode: 'light',
+        themeMode: 'dark',
         backupVersion: 1,
         homeSortMode: 'updatedAt',
         createdAt: now,
@@ -258,7 +262,7 @@ export function useBackup() {
       ]);
     return {
       appName: 'DuoShou',
-      displayName: '剁手',
+      displayName: '年轮',
       schemaVersion: 1,
       exportedAt: new Date().toISOString(),
       assets,

@@ -1,6 +1,8 @@
 import { addDays, differenceInCalendarDays, differenceInDays, format } from 'date-fns';
 import type { Asset, Accessory } from '../types';
 
+const DAYS_PER_MONTH = 365 / 12;
+
 /** 已使用天数 = today - purchaseDate + 1（最小1） */
 export function calcUsedDays(purchaseDate: string): number {
   if (!purchaseDate) return 1;
@@ -22,19 +24,20 @@ export function calcTotalCost(asset: Asset, accessories: Accessory[]): number {
   return asset.purchasePrice + accessoryCost;
 }
 
-/** 6 年折旧期，加速折旧暂按每年减值 30% 估算当前估值 */
-export function estimateDepreciatedValue(purchasePrice: number, purchaseDate: string): number {
+/** 6 年折旧期，按用户设置的年折旧率估算当前估值 */
+export function estimateDepreciatedValue(purchasePrice: number, purchaseDate: string, annualRate = 0.3): number {
   if (purchasePrice <= 0) return 0;
   const usedDays = calcUsedDays(purchaseDate);
   if (usedDays <= 0) return purchasePrice;
   const years = Math.min(6, usedDays / 365);
-  return Math.max(0, purchasePrice * Math.pow(0.7, years));
+  const safeRate = Math.min(1, Math.max(0, annualRate));
+  return Math.max(0, purchasePrice * Math.pow(1 - safeRate, years));
 }
 
 export function getCurrentValue(asset: Asset): number {
-  return asset.currentValue > 0
-    ? asset.currentValue
-    : estimateDepreciatedValue(asset.purchasePrice, asset.purchaseDate);
+  if (asset.currentValue > 0) return asset.currentValue;
+  if (asset.valuationMode === 'none' || asset.valuationMode === 'manual') return asset.purchasePrice;
+  return estimateDepreciatedValue(asset.purchasePrice, asset.purchaseDate, asset.annualDepreciationRate ?? 0.3);
 }
 
 /** 净成本 = 总成本 - currentValue（无估值=总成本） */
@@ -47,6 +50,29 @@ export function calcNetCost(totalCost: number, currentValue: number): number {
 export function calcDailyCost(netCost: number, usedDays: number): number {
   if (usedDays <= 0) return 0;
   return netCost / usedDays;
+}
+
+export function getMonthlyIncome(asset: Asset): number {
+  return asset.hasIncome ? Math.max(0, asset.monthlyIncome ?? 0) : 0;
+}
+
+export function getMonthlyCost(asset: Asset): number {
+  return Math.max(0, asset.monthlyCost ?? 0);
+}
+
+export function calcPeriodicAmount(monthlyAmount: number) {
+  const safe = Math.max(0, monthlyAmount);
+  return {
+    daily: safe / DAYS_PER_MONTH,
+    weekly: (safe / DAYS_PER_MONTH) * 7,
+    monthly: safe,
+    yearly: safe * 12,
+  };
+}
+
+export function calcAccruedMonthlyAmount(monthlyAmount: number, days: number): number {
+  if (monthlyAmount <= 0 || days <= 0) return 0;
+  return (monthlyAmount / DAYS_PER_MONTH) * days;
 }
 
 /** 亏损 = 总成本 - currentValue（已卖出=总成本 - soldPrice） */
@@ -91,7 +117,7 @@ export function calcWishlistDays(expectedPrice: number, expectedResidualValue: n
 
 /** 冲动等级：<3天=危险，3-14天=观察，15-30天=冷静中，>30天=冷静。价格>5000提一级 */
 export function calcImpulseLevel(cooldownDays: number, price: number): string {
-  const levels = ['冷静', '观察', '危险', '马上剁手'];
+  const levels = ['冷静', '观察', '危险', '马上想买'];
   let index: number;
   if (cooldownDays < 3) index = 2;
   else if (cooldownDays < 15) index = 1;
@@ -153,6 +179,19 @@ export function getDailyCost(asset: Asset, accessories: Accessory[]): number {
   return calcDailyCost(calcNetCost(totalCost, getCurrentValue(asset)), usedDays);
 }
 
+export function getNetHoldingCost(asset: Asset, accessories: Accessory[]): number {
+  const usedDays = getUsedDays(asset);
+  const totalCost = calcTotalCost(asset, accessories);
+  const currentValue = asset.status === 'sold' && asset.soldPrice != null ? asset.soldPrice : getCurrentValue(asset);
+  const income = calcAccruedMonthlyAmount(getMonthlyIncome(asset), usedDays);
+  const runningCost = calcAccruedMonthlyAmount(getMonthlyCost(asset), usedDays);
+  return totalCost + runningCost - currentValue - income;
+}
+
+export function getDailyNetHoldingCost(asset: Asset, accessories: Accessory[]): number {
+  return calcDailyCost(getNetHoldingCost(asset, accessories), getUsedDays(asset));
+}
+
 /** getLoss alias */
 export function getLoss(asset: Asset, accessories: Accessory[]): number {
   const totalCost = calcTotalCost(asset, accessories);
@@ -190,7 +229,7 @@ export function getNearTargetAssets(assets: Asset[], accessories: Accessory[]): 
   return assets
     .filter(a => a.status === 'active' && a.targetDailyCost > 0)
     .map(a => {
-      const daily = getDailyCost(a, accessories);
+      const daily = getDailyNetHoldingCost(a, accessories);
       const ratio = daily / a.targetDailyCost;
       return { asset: a, ratio };
     })
@@ -218,10 +257,18 @@ export function getEffectiveValue(asset: Asset): number {
 export function calcAssetMetrics(asset: Asset, accessories: Accessory[]) {
   const totalCost = calcTotalCost(asset, accessories);
   const usedDays = getUsedDays(asset);
+  const monthlyIncome = getMonthlyIncome(asset);
+  const monthlyCost = getMonthlyCost(asset);
+  const periodicIncome = calcPeriodicAmount(monthlyIncome);
+  const periodicCost = calcPeriodicAmount(monthlyCost);
+  const totalIncome = calcAccruedMonthlyAmount(monthlyIncome, usedDays);
+  const totalRunningCost = calcAccruedMonthlyAmount(monthlyCost, usedDays);
   const netCost = asset.status === 'sold' && asset.soldPrice != null
     ? totalCost - asset.soldPrice
     : calcNetCost(totalCost, getCurrentValue(asset));
   const dailyCost = calcDailyCost(netCost, usedDays);
+  const netHoldingCost = totalCost + totalRunningCost - (asset.status === 'sold' && asset.soldPrice != null ? asset.soldPrice : getCurrentValue(asset)) - totalIncome;
+  const dailyNetHoldingCost = calcDailyCost(netHoldingCost, usedDays);
   const loss = calcLoss(asset, totalCost);
   const retainRate = calcRetainRate(asset, totalCost);
   const targetDays = calcTargetDays(netCost, asset.targetDailyCost);
@@ -233,6 +280,14 @@ export function calcAssetMetrics(asset: Asset, accessories: Accessory[]) {
     totalCost,
     netCost,
     dailyCost,
+    monthlyIncome,
+    monthlyCost,
+    periodicIncome,
+    periodicCost,
+    totalIncome,
+    totalRunningCost,
+    netHoldingCost,
+    dailyNetHoldingCost,
     loss,
     retainRate,
     targetDays,

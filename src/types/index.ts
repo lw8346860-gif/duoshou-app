@@ -77,9 +77,16 @@ export interface Asset {
   purchaseDate: string;
   purchaseChannel: string;
   currentValue: number;
+  valuationMode?: 'manual' | 'depreciation' | 'none';
+  annualDepreciationRate?: number;
   expectedResidualValue: number;
   targetDailyCost: number;
   targetUseDays: number;
+  hasIncome?: boolean;
+  monthlyIncome?: number;
+  incomeNote?: string;
+  monthlyCost?: number;
+  costNote?: string;
   status: AssetStatus;
   lastUsedDate: string;
   useCount: number;
@@ -125,6 +132,11 @@ export interface WishlistItem {
   expectedResidualValue: number;
   targetDailyCost: number;
   targetDate?: string;
+  hasIncome?: boolean;
+  monthlyIncome?: number;
+  incomeNote?: string;
+  monthlyCost?: number;
+  costNote?: string;
   expectedUseYears: number;
   reason: string;
   cooldownDays: number;
@@ -205,25 +217,28 @@ export interface BackupData {
 
 export const DEFAULT_CATEGORIES: Category[] = [
   { id: 'cat-digital', name: '数码', icon: 'digital', order: 0 },
-  { id: 'cat-car', name: '汽车', icon: 'car', order: 1 },
-  { id: 'cat-luxury', name: '奢侈品', icon: 'luxury', order: 2 },
-  { id: 'cat-watch', name: '腕表', icon: 'watch', order: 3 },
-  { id: 'cat-bag', name: '包袋', icon: 'bag', order: 4 },
-  { id: 'cat-jewelry', name: '珠宝', icon: 'jewelry', order: 5 },
-  { id: 'cat-clothing', name: '服饰', icon: 'clothing', order: 6 },
-  { id: 'cat-shoes', name: '鞋履', icon: 'shoes', order: 7 },
-  { id: 'cat-appliance', name: '家电', icon: 'appliance', order: 8 },
-  { id: 'cat-furniture', name: '家具', icon: 'furniture', order: 9 },
-  { id: 'cat-collectible', name: '收藏', icon: 'collectible', order: 10 },
-  { id: 'cat-tool', name: '工具', icon: 'tool', order: 11 },
-  { id: 'cat-office', name: '办公', icon: 'office', order: 12 },
-  { id: 'cat-sports', name: '运动', icon: 'sports', order: 13 },
-  { id: 'cat-other', name: '其他', icon: 'other', order: 14 },
+  { id: 'cat-real-estate', name: '房产', icon: 'home-asset', order: 1 },
+  { id: 'cat-stock', name: '股票', icon: 'stock', order: 2 },
+  { id: 'cat-deposit', name: '存款理财', icon: 'deposit', order: 3 },
+  { id: 'cat-insurance', name: '保险', icon: 'insurance', order: 4 },
+  { id: 'cat-car', name: '汽车', icon: 'car', order: 5 },
+  { id: 'cat-parking', name: '车位车牌', icon: 'parking', order: 6 },
+  { id: 'cat-luxury', name: '奢侈品', icon: 'luxury', order: 7 },
+  { id: 'cat-watch', name: '腕表', icon: 'watch', order: 8 },
+  { id: 'cat-bag', name: '包袋', icon: 'bag', order: 9 },
+  { id: 'cat-jewelry', name: '珠宝', icon: 'jewelry', order: 10 },
+  { id: 'cat-appliance', name: '家电', icon: 'appliance', order: 11 },
+  { id: 'cat-furniture', name: '家具', icon: 'furniture', order: 12 },
+  { id: 'cat-collectible', name: '收藏', icon: 'collectible', order: 13 },
+  { id: 'cat-tool', name: '工具', icon: 'tool', order: 14 },
+  { id: 'cat-office', name: '办公', icon: 'office', order: 15 },
+  { id: 'cat-other', name: '其他', icon: 'other', order: 16 },
 ];
 
-export const REMOVED_CATEGORY_IDS = ['cat-camera', 'cat-gaming', 'cat-subscription'];
+export const REMOVED_CATEGORY_IDS = ['cat-camera', 'cat-gaming', 'cat-subscription', 'cat-clothing', 'cat-shoes', 'cat-sports'];
 
 export const DEFAULT_TAGS: Tag[] = [
+  { id: 'tag-hold-over-year', name: '持有一年以上', color: '#C96A19' },
   { id: 'tag-freq-use', name: '高频使用', color: '#52c41a' },
   { id: 'tag-low-use', name: '低频使用', color: '#faad14' },
   { id: 'tag-impulse', name: '冲动消费', color: '#ff4d4f' },

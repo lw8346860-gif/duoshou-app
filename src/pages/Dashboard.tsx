@@ -3,8 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAllAccessories, useAssets } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useSettings';
 import {
-  getTotalCost, getDailyCost, getLoss,
-  formatCurrency, getNearTargetAssets, getCurrentValue,
+  formatCurrency,
+  getCurrentValue,
+  getDailyNetHoldingCost,
+  getMonthlyIncome,
+  getNetHoldingCost,
+  getTotalCost,
 } from '../utils/calculations';
 import AssetCard from '../components/AssetCard';
 
@@ -18,16 +22,16 @@ export default function Dashboard() {
     const active = assets.filter(a => a.status === 'active');
     const idle = assets.filter(a => a.status === 'idle');
     const retired = assets.filter(a => a.status === 'retired' || a.status === 'sold' || a.status === 'discarded');
-
     const totalInvested = assets
       .filter(a => !a.isExcludedFromTotal)
       .reduce((s, a) => s + getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
-    const totalValue = assets
-      .reduce((s, a) => s + getCurrentValue(a), 0);
-    const netCost = totalInvested - totalValue;
+    const totalValue = assets.reduce((s, a) => s + getCurrentValue(a), 0);
+    const monthlyIncome = assets.reduce((s, a) => s + getMonthlyIncome(a), 0);
+    const yearlyIncome = monthlyIncome * 12;
+    const netHoldingCost = assets.reduce((s, a) => s + getNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
     const dailyAssets = active.filter(a => !a.isExcludedFromDailyAverage);
     const avgDaily = dailyAssets.length > 0
-      ? dailyAssets.reduce((s, a) => s + getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0) / dailyAssets.length
+      ? dailyAssets.reduce((s, a) => s + getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0) / dailyAssets.length
       : 0;
 
     return {
@@ -37,117 +41,90 @@ export default function Dashboard() {
       retired: retired.length,
       totalInvested,
       totalValue,
-      netCost,
+      monthlyIncome,
+      yearlyIncome,
+      netHoldingCost,
       avgDaily,
     };
   }, [assets, allAccessories]);
 
-  const quickCards = useMemo(() => {
-    const withLoss = assets
-      .map(a => ({ asset: a, loss: getLoss(a, allAccessories.filter(acc => acc.assetId === a.id)) }))
-      .sort((a, b) => b.loss - a.loss);
-    const mostCostlyError = withLoss[0]?.asset;
-
-    const withDaily = assets
+  const highlights = useMemo(() => {
+    const incomeKing = assets
+      .filter(a => getMonthlyIncome(a) > 0)
+      .sort((a, b) => getMonthlyIncome(b) - getMonthlyIncome(a))[0];
+    const mostInvested = assets
+      .map(a => ({ asset: a, cost: getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))
+      .sort((a, b) => b.cost - a.cost)[0]?.asset;
+    const bestDaily = assets
       .filter(a => a.status === 'active')
-      .map(a => ({ asset: a, daily: getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))
-      .sort((a, b) => a.daily - b.daily);
-    const bestValue = withDaily[0]?.asset;
+      .map(a => ({ asset: a, daily: getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))
+      .sort((a, b) => a.daily - b.daily)[0]?.asset;
 
-    const nearTarget = getNearTargetAssets(assets, allAccessories);
-
-    return { mostCostlyError, bestValue, nearTarget: nearTarget[0] };
+    return { incomeKing, mostInvested, bestDaily };
   }, [assets, allAccessories]);
 
   const recentAssets = useMemo(() => assets.slice(0, 5), [assets]);
 
   return (
-    <div className="px-4 pt-12 pb-4">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-[#1D1D1F]">剁手</h1>
-        <p className="text-sm text-[#8E8E93] mt-1">买的时候冲动，以后慢慢算账。</p>
+    <div className="dashboard-page px-4 pt-12 pb-4">
+      <div className="dashboard-top mb-5">
+        <div>
+          <h1 className="text-3xl font-black text-[#1D1D1F]">年轮</h1>
+          <p className="text-sm text-[#8E8E93] mt-1">长期资产，慢慢长出自己的时间刻度。</p>
+        </div>
+        <button onClick={() => navigate('/assets/new')} className="dashboard-add" aria-label="新增资产">+</button>
       </div>
 
-      {/* Main Stats Card */}
-      <div className="surface-ink rounded-3xl p-5 mb-4">
-        <div className="text-xs text-white/60 mb-3">今日剁手指数</div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className="text-3xl font-bold">{stats.total}</div>
-            <div className="text-xs text-white/60">资产总数</div>
-          </div>
-          <div className="text-right">
-            <div className="text-sm">
-              <span className="text-white/60">{stats.active}</span>
-              <span className="text-white/40"> 服役 · </span>
-              <span className="text-white/60">{stats.idle}</span>
-              <span className="text-white/40"> 闲置 · </span>
-              <span className="text-white/60">{stats.retired}</span>
-              <span className="text-white/40"> 退役</span>
-            </div>
-          </div>
+      <section className="dashboard-hero rounded-3xl p-5 mb-3">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-bold text-white/72">长期资产总览</div>
+          <div className="text-xs text-white/45">{stats.total} 项</div>
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-white/10">
-          <div>
-            <div className="text-lg font-bold">{formatCurrency(stats.totalInvested)}</div>
-            <div className="text-xs text-white/60">总投入</div>
-          </div>
-          <div className="text-right">
-            <div className="text-lg font-bold">{formatCurrency(stats.totalValue)}</div>
-            <div className="text-xs text-white/60">当前估值</div>
-          </div>
+        <div className="mt-5">
+          <div className="text-xs text-white/48">当前估值</div>
+          <div className="text-4xl font-black tracking-normal mt-1">{formatCurrency(stats.totalValue)}</div>
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <div>
-            <div className="text-lg font-bold">{formatCurrency(stats.netCost)}</div>
-            <div className="text-xs text-white/60">净消费</div>
-          </div>
-          <div className="text-right">
-            <div className="text-lg font-bold">{formatCurrency(stats.avgDaily)}</div>
-            <div className="text-xs text-white/60">平均日均</div>
-          </div>
+        <div className="dashboard-bars mt-5" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
         </div>
-      </div>
+        <div className="grid grid-cols-2 gap-3 mt-5">
+          <Metric label="总投入" value={formatCurrency(stats.totalInvested)} />
+          <Metric label="净持有成本" value={formatCurrency(stats.netHoldingCost)} />
+          <Metric label="月现金流" value={formatCurrency(stats.monthlyIncome)} />
+          <Metric label="平均日均" value={formatCurrency(stats.avgDaily)} />
+        </div>
+      </section>
 
-      {/* Quick Cards */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        {quickCards.mostCostlyError && (
-          <button
-            onClick={() => navigate(`/assets/${quickCards.mostCostlyError!.id}`)}
-            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-[#E5E5E5]"
-          >
-            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />最贵消费</div>
-            <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.mostCostlyError.name}</div>
-            <div className="text-xs text-[#8E8E93]">亏损 {formatCurrency(getLoss(quickCards.mostCostlyError, allAccessories.filter(acc => acc.assetId === quickCards.mostCostlyError!.id)))}</div>
-          </button>
-        )}
-        {quickCards.bestValue && (
-          <button
-            onClick={() => navigate(`/assets/${quickCards.bestValue!.id}`)}
-            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-[#E5E5E5]"
-          >
-            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />最值回票价</div>
-            <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.bestValue.name}</div>
-            <div className="text-xs text-[#8E8E93]">日均 {formatCurrency(getDailyCost(quickCards.bestValue, allAccessories.filter(acc => acc.assetId === quickCards.bestValue!.id)))}</div>
-          </button>
-        )}
-        {quickCards.nearTarget && (
-          <button
-            onClick={() => navigate(`/assets/${quickCards.nearTarget!.id}`)}
-            className="bg-white rounded-2xl p-4 text-left shadow-sm border border-[#E5E5E5]"
-          >
-            <div className="text-xs text-[#1D1D1F] mb-1 inline-flex items-center gap-1"><span className="notice-dot" />快到目标</div>
-            <div className="text-sm font-semibold text-[#1D1D1F] truncate">{quickCards.nearTarget.name}</div>
-            <div className="text-xs text-[#8E8E93]">即将达标</div>
-          </button>
-        )}
-      </div>
-
-      {/* Recent Assets */}
-      <div className="mb-4">
+      <section className="cashflow-panel bg-white rounded-3xl p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-[#1D1D1F]">最近更新</h2>
+          <h2 className="text-base font-black text-[#1D1D1F]">现金流折算</h2>
+          <span className="text-xs text-[#8E8E93]">按月录入</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <SmallMetric label="日" value={formatCurrency(stats.monthlyIncome / (365 / 12))} />
+          <SmallMetric label="周" value={formatCurrency((stats.monthlyIncome / (365 / 12)) * 7)} />
+          <SmallMetric label="年" value={formatCurrency(stats.yearlyIncome)} />
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 mb-4">
+        {highlights.mostInvested && (
+          <Highlight title="最大持仓" assetName={highlights.mostInvested.name} value={formatCurrency(getTotalCost(highlights.mostInvested, allAccessories.filter(acc => acc.assetId === highlights.mostInvested!.id)))} onClick={() => navigate(`/assets/${highlights.mostInvested!.id}`)} />
+        )}
+        {highlights.incomeKing && (
+          <Highlight title="现金流最高" assetName={highlights.incomeKing.name} value={`${formatCurrency(getMonthlyIncome(highlights.incomeKing))}/月`} onClick={() => navigate(`/assets/${highlights.incomeKing!.id}`)} />
+        )}
+        {highlights.bestDaily && (
+          <Highlight title="日均最优" assetName={highlights.bestDaily.name} value={`${formatCurrency(getDailyNetHoldingCost(highlights.bestDaily, allAccessories.filter(acc => acc.assetId === highlights.bestDaily!.id)))}/天`} onClick={() => navigate(`/assets/${highlights.bestDaily!.id}`)} />
+        )}
+      </section>
+
+      <section className="mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-black text-[#1D1D1F]">资产年轮</h2>
           <button onClick={() => navigate('/assets')} className="text-xs text-[#8E8E93]">查看全部 →</button>
         </div>
         <div className="flex flex-col gap-3">
@@ -161,13 +138,45 @@ export default function Dashboard() {
             />
           ))}
           {recentAssets.length === 0 && (
-            <div className="text-center py-12 text-[#8E8E93]">
-              <div className="category-icon text-4xl mb-2 mx-auto"><span className="category-icon-fallback">剁</span></div>
-              <div>还没有资产，点击右下角 + 添加</div>
+            <div className="empty-orbit bg-white rounded-3xl p-8 text-center">
+              <div className="empty-orbit-icon mx-auto mb-4" aria-hidden="true" />
+              <div className="text-sm font-black text-[#1D1D1F]">还没有长期资产</div>
+              <div className="text-xs text-[#8E8E93] mt-2">预计持有 1 年以上的资产，再放进年轮。</div>
+              <button onClick={() => navigate('/assets/new')} className="btn-secondary mt-4 px-4 py-2 rounded-xl text-xs">
+                添加第一项
+              </button>
             </div>
           )}
         </div>
-      </div>
+      </section>
     </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="dashboard-metric">
+      <div>{label}</div>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function SmallMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="small-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function Highlight({ title, assetName, value, onClick }: { title: string; assetName: string; value: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="highlight-card bg-white rounded-2xl p-4 text-left">
+      <div className="text-xs text-[#8E8E93] mb-2">{title}</div>
+      <div className="text-sm font-black text-[#1D1D1F] truncate">{assetName}</div>
+      <div className="text-xs text-[#1D1D1F] mt-1 font-bold truncate">{value}</div>
+    </button>
   );
 }

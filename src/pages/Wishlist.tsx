@@ -12,6 +12,7 @@ function WishlistCard({ item, onConvert, onDelete, onClick }: {
 }) {
   const days = calcWishlistDays(item.expectedPrice, 0, item.targetDailyCost);
   const impulse = calcImpulseLevel(item.cooldownDays, item.expectedPrice);
+  const monthlyIncome = item.hasIncome ? Math.max(0, item.monthlyIncome ?? 0) : 0;
 
   return (
     <div onClick={onClick} className="bg-white rounded-2xl p-4 space-y-3 cursor-pointer active:bg-[#FAFAFA]">
@@ -42,6 +43,12 @@ function WishlistCard({ item, onConvert, onDelete, onClick }: {
           </div>
         )}
       </div>
+
+      {monthlyIncome > 0 && (
+        <div className="cashflow-mini">
+          预计月现金流 {formatMoney(monthlyIncome, item.currency)}
+        </div>
+      )}
 
       {item.status === 'watching' && (
         <div className="flex gap-2">
@@ -85,6 +92,11 @@ export default function Wishlist() {
       expectedResidualValue: 0,
       targetDailyCost: item.targetDailyCost,
       targetUseDays: calcWishlistDays(item.expectedPrice, 0, item.targetDailyCost),
+      hasIncome: item.hasIncome,
+      monthlyIncome: item.monthlyIncome,
+      incomeNote: item.incomeNote,
+      monthlyCost: item.monthlyCost,
+      costNote: item.costNote,
       status: 'active',
       lastUsedDate: '',
       useCount: 0,

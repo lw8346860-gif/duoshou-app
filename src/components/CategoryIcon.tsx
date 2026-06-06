@@ -2,6 +2,11 @@ import type { Category } from '../types';
 
 const iconPaths: Record<string, string[]> = {
   'cat-digital': ['M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z', 'M10 17h4'],
+  'cat-real-estate': ['M4 11l8-7 8 7', 'M6 10v10h12V10', 'M9 20v-6h6v6'],
+  'cat-stock': ['M5 18h14', 'M7 15l3-4 3 2 4-6', 'M16 7h3v3'],
+  'cat-deposit': ['M5 9l7-4 7 4v2H5V9Z', 'M7 11v7M12 11v7M17 11v7', 'M4 19h16'],
+  'cat-insurance': ['M12 4l7 3v5c0 4.5-2.8 7.1-7 8-4.2-.9-7-3.5-7-8V7l7-3Z', 'M9 12l2 2 4-5'],
+  'cat-parking': ['M7 4h6a4 4 0 0 1 0 8H9v8H7V4Z', 'M9 6v4h4a2 2 0 0 0 0-4H9Z'],
   'cat-car': ['M5 15h14l-1.6-5.2A3 3 0 0 0 14.5 8h-5a3 3 0 0 0-2.9 1.8L5 15Z', 'M7 15v2M17 15v2M8 12h8'],
   'cat-luxury': ['M12 4l6 5-6 11L6 9l6-5Z', 'M6 9h12M9 9l3 11 3-11'],
   'cat-watch': ['M9 4h6l1 4a5 5 0 0 1 0 8l-1 4H9l-1-4a5 5 0 0 1 0-8l1-4Z', 'M12 9v3l2 1'],
@@ -32,7 +37,7 @@ export default function CategoryIcon({ category, className = '' }: CategoryIconP
   if (!paths) {
     return (
       <span className={`category-icon ${className}`} aria-hidden="true">
-        <span className="category-icon-fallback">{category?.name?.slice(0, 1) || '剁'}</span>
+        <span className="category-icon-fallback">{category?.name?.slice(0, 1) || '年'}</span>
       </span>
     );
   }
