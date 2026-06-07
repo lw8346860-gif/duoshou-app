@@ -85,6 +85,12 @@ export interface Asset {
   hasIncome?: boolean;
   monthlyIncome?: number;
   incomeNote?: string;
+  debtBalance?: number;
+  monthlyPayment?: number;
+  paymentStartDate?: string;
+  paymentEndDate?: string;
+  monthlyMaintenanceCost?: number;
+  monthlyOtherCost?: number;
   monthlyCost?: number;
   costNote?: string;
   status: AssetStatus;

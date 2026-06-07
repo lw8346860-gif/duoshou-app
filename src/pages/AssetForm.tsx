@@ -31,6 +31,12 @@ const emptyForm: FormData = {
   hasIncome: false,
   monthlyIncome: 0,
   incomeNote: '',
+  debtBalance: 0,
+  monthlyPayment: 0,
+  paymentStartDate: '',
+  paymentEndDate: '',
+  monthlyMaintenanceCost: 0,
+  monthlyOtherCost: 0,
   monthlyCost: 0,
   costNote: '',
   status: 'active',
@@ -151,7 +157,13 @@ export default function AssetForm() {
       hasIncome: Boolean(form.hasIncome && (form.monthlyIncome ?? 0) > 0),
       monthlyIncome: form.hasIncome ? Math.max(0, form.monthlyIncome ?? 0) : 0,
       incomeNote: form.hasIncome ? (form.incomeNote ?? '').trim() : '',
-      monthlyCost: Math.max(0, form.monthlyCost ?? 0),
+      debtBalance: Math.max(0, form.debtBalance ?? 0),
+      monthlyPayment: Math.max(0, form.monthlyPayment ?? 0),
+      paymentStartDate: form.monthlyPayment ? (form.paymentStartDate || '') : '',
+      paymentEndDate: form.monthlyPayment ? (form.paymentEndDate || '') : '',
+      monthlyMaintenanceCost: Math.max(0, form.monthlyMaintenanceCost ?? 0),
+      monthlyOtherCost: Math.max(0, form.monthlyOtherCost ?? 0),
+      monthlyCost: Math.max(0, (form.monthlyMaintenanceCost ?? 0) + (form.monthlyOtherCost ?? 0)),
       costNote: (form.costNote ?? '').trim(),
       retiredDate: form.status === 'retired' ? (form.retiredDate ?? todayString()) : null,
       soldDate: null,
@@ -389,63 +401,107 @@ export default function AssetForm() {
       </section>
 
       <section className="bg-white rounded-2xl p-3 space-y-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="section-title">现金流</h2>
-            <p className="field-label mt-1">按月填写，系统自动换算日 / 周 / 年。</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setField('hasIncome', !form.hasIncome)}
-            className={`choice-chip rounded-full ${form.hasIncome ? 'choice-chip-selected' : ''}`}
-          >
-            {form.hasIncome ? '有现金流' : '无现金流'}
-          </button>
+        <div>
+          <h2 className="section-title">存量与现金流</h2>
+          <p className="field-label mt-1">存量看净资产，流量只展示净现金流。</p>
         </div>
-        {form.hasIncome && (
-          <div className="grid grid-cols-2 gap-2">
-            <label className="field-label">
-              月收入
-              <input
-                type="number"
-                placeholder="例如租金/分红"
-                value={form.monthlyIncome || ''}
-                onChange={e => setField('monthlyIncome', Number(e.target.value))}
-                className="form-input mt-1"
-              />
-            </label>
-            <label className="field-label">
-              收益说明
-              <input
-                placeholder="租金、股息等"
-                value={form.incomeNote ?? ''}
-                onChange={e => setField('incomeNote', e.target.value)}
-                className="form-input mt-1"
-              />
-            </label>
-          </div>
-        )}
         <div className="grid grid-cols-2 gap-2">
           <label className="field-label">
-            月成本
+            当前负债
             <input
               type="number"
-              placeholder="房产物业/维护"
-              value={form.monthlyCost || ''}
-              onChange={e => setField('monthlyCost', Number(e.target.value))}
+              placeholder="贷款余额/负债余额"
+              value={form.debtBalance || ''}
+              onChange={e => setField('debtBalance', Number(e.target.value))}
               className="form-input mt-1"
             />
           </label>
           <label className="field-label">
-            成本说明
+            月收入
             <input
-              placeholder="可不填"
-              value={form.costNote ?? ''}
-              onChange={e => setField('costNote', e.target.value)}
+              type="number"
+              placeholder="租金/分红/出租"
+              value={form.monthlyIncome || ''}
+              onChange={e => {
+                const value = Number(e.target.value);
+                setField('monthlyIncome', value);
+                setField('hasIncome', value > 0);
+              }}
               className="form-input mt-1"
             />
           </label>
         </div>
+        <div className="grid grid-cols-3 gap-2">
+          <label className="field-label">
+            月供
+            <input
+              type="number"
+              placeholder="负现金流"
+              value={form.monthlyPayment || ''}
+              onChange={e => setField('monthlyPayment', Number(e.target.value))}
+              className="form-input mt-1"
+            />
+          </label>
+          <label className="field-label">
+            月供开始
+            <input
+              type="date"
+              value={form.paymentStartDate ?? ''}
+              onChange={e => setField('paymentStartDate', e.target.value)}
+              className="form-input mt-1"
+            />
+          </label>
+          <label className="field-label">
+            月供结束
+            <input
+              type="date"
+              value={form.paymentEndDate ?? ''}
+              onChange={e => setField('paymentEndDate', e.target.value)}
+              className="form-input mt-1"
+            />
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="field-label">
+            月维护
+            <input
+              type="number"
+              placeholder="物业/保养"
+              value={form.monthlyMaintenanceCost || ''}
+              onChange={e => setField('monthlyMaintenanceCost', Number(e.target.value))}
+              className="form-input mt-1"
+            />
+          </label>
+          <label className="field-label">
+            其他月成本
+            <input
+              type="number"
+              placeholder="可不填"
+              value={form.monthlyOtherCost || ''}
+              onChange={e => setField('monthlyOtherCost', Number(e.target.value))}
+              className="form-input mt-1"
+            />
+          </label>
+        </div>
+        <div className="summary-strip">
+          <div>
+            <span>净资产</span>
+            <strong>{formatMoney(effectiveValue - Math.max(0, form.debtBalance ?? 0), 'CNY')}</strong>
+          </div>
+          <div>
+            <span>月净现金流</span>
+            <strong>{formatMoney((form.monthlyIncome ?? 0) - (form.monthlyPayment ?? 0) - (form.monthlyMaintenanceCost ?? 0) - (form.monthlyOtherCost ?? 0), 'CNY')}</strong>
+          </div>
+        </div>
+        <label className="field-label block">
+          说明
+          <input
+            placeholder="租金、月供、维护成本说明"
+            value={form.costNote ?? ''}
+            onChange={e => setField('costNote', e.target.value)}
+            className="form-input mt-1"
+          />
+        </label>
       </section>
 
       <div className="form-action-bar sticky bottom-20 z-30 -mx-1 rounded-2xl p-2 backdrop-blur">

@@ -57,7 +57,46 @@ export function getMonthlyIncome(asset: Asset): number {
 }
 
 export function getMonthlyCost(asset: Asset): number {
-  return Math.max(0, asset.monthlyCost ?? 0);
+  return getMonthlyOutflow(asset);
+}
+
+export function getDebtBalance(asset: Asset): number {
+  return Math.max(0, asset.debtBalance ?? 0);
+}
+
+export function getNetAssetValue(asset: Asset): number {
+  return getCurrentValue(asset) - getDebtBalance(asset);
+}
+
+export function isMonthlyPaymentActive(asset: Asset, date = new Date()): boolean {
+  const payment = Math.max(0, asset.monthlyPayment ?? 0);
+  if (payment <= 0) return false;
+  const today = format(date, 'yyyy-MM-dd');
+  if (asset.paymentStartDate && today < asset.paymentStartDate) return false;
+  if (asset.paymentEndDate && today > asset.paymentEndDate) return false;
+  return true;
+}
+
+export function getActiveMonthlyPayment(asset: Asset): number {
+  return isMonthlyPaymentActive(asset) ? Math.max(0, asset.monthlyPayment ?? 0) : 0;
+}
+
+export function getMonthlyMaintenanceCost(asset: Asset): number {
+  return Math.max(0, asset.monthlyMaintenanceCost ?? 0);
+}
+
+export function getMonthlyOtherCost(asset: Asset): number {
+  const explicitOther = Math.max(0, asset.monthlyOtherCost ?? 0);
+  const legacyCost = Math.max(0, asset.monthlyCost ?? 0);
+  return explicitOther || legacyCost;
+}
+
+export function getMonthlyOutflow(asset: Asset): number {
+  return getActiveMonthlyPayment(asset) + getMonthlyMaintenanceCost(asset) + getMonthlyOtherCost(asset);
+}
+
+export function getNetMonthlyCashflow(asset: Asset): number {
+  return getMonthlyIncome(asset) - getMonthlyOutflow(asset);
 }
 
 export function calcPeriodicAmount(monthlyAmount: number) {
@@ -73,6 +112,25 @@ export function calcPeriodicAmount(monthlyAmount: number) {
 export function calcAccruedMonthlyAmount(monthlyAmount: number, days: number): number {
   if (monthlyAmount <= 0 || days <= 0) return 0;
   return (monthlyAmount / DAYS_PER_MONTH) * days;
+}
+
+export function calcAccruedMonthlyPayment(asset: Asset): number {
+  const monthlyPayment = Math.max(0, asset.monthlyPayment ?? 0);
+  const usedDays = getUsedDays(asset);
+  if (monthlyPayment <= 0 || usedDays <= 0) return 0;
+
+  const purchaseDate = new Date(`${asset.purchaseDate}T00:00:00`);
+  const endDate = new Date();
+  const start = asset.paymentStartDate
+    ? new Date(`${asset.paymentStartDate}T00:00:00`)
+    : purchaseDate;
+  const end = asset.paymentEndDate
+    ? new Date(`${asset.paymentEndDate}T00:00:00`)
+    : endDate;
+  const activeStart = start > purchaseDate ? start : purchaseDate;
+  const activeEnd = end < endDate ? end : endDate;
+  const activeDays = differenceInCalendarDays(activeEnd, activeStart) + 1;
+  return calcAccruedMonthlyAmount(monthlyPayment, Math.max(0, activeDays));
 }
 
 /** 亏损 = 总成本 - currentValue（已卖出=总成本 - soldPrice） */
@@ -184,7 +242,8 @@ export function getNetHoldingCost(asset: Asset, accessories: Accessory[]): numbe
   const totalCost = calcTotalCost(asset, accessories);
   const currentValue = asset.status === 'sold' && asset.soldPrice != null ? asset.soldPrice : getCurrentValue(asset);
   const income = calcAccruedMonthlyAmount(getMonthlyIncome(asset), usedDays);
-  const runningCost = calcAccruedMonthlyAmount(getMonthlyCost(asset), usedDays);
+  const recurringCost = calcAccruedMonthlyAmount(getMonthlyMaintenanceCost(asset) + getMonthlyOtherCost(asset), usedDays);
+  const runningCost = recurringCost + calcAccruedMonthlyPayment(asset);
   return totalCost + runningCost - currentValue - income;
 }
 
@@ -258,11 +317,17 @@ export function calcAssetMetrics(asset: Asset, accessories: Accessory[]) {
   const totalCost = calcTotalCost(asset, accessories);
   const usedDays = getUsedDays(asset);
   const monthlyIncome = getMonthlyIncome(asset);
-  const monthlyCost = getMonthlyCost(asset);
+  const monthlyPayment = getActiveMonthlyPayment(asset);
+  const monthlyMaintenanceCost = getMonthlyMaintenanceCost(asset);
+  const monthlyOtherCost = getMonthlyOtherCost(asset);
+  const monthlyCost = getMonthlyOutflow(asset);
+  const netMonthlyCashflow = getNetMonthlyCashflow(asset);
+  const debtBalance = getDebtBalance(asset);
+  const netAssetValue = getNetAssetValue(asset);
   const periodicIncome = calcPeriodicAmount(monthlyIncome);
   const periodicCost = calcPeriodicAmount(monthlyCost);
   const totalIncome = calcAccruedMonthlyAmount(monthlyIncome, usedDays);
-  const totalRunningCost = calcAccruedMonthlyAmount(monthlyCost, usedDays);
+  const totalRunningCost = calcAccruedMonthlyAmount(monthlyMaintenanceCost + monthlyOtherCost, usedDays) + calcAccruedMonthlyPayment(asset);
   const netCost = asset.status === 'sold' && asset.soldPrice != null
     ? totalCost - asset.soldPrice
     : calcNetCost(totalCost, getCurrentValue(asset));
@@ -281,7 +346,13 @@ export function calcAssetMetrics(asset: Asset, accessories: Accessory[]) {
     netCost,
     dailyCost,
     monthlyIncome,
+    monthlyPayment,
+    monthlyMaintenanceCost,
+    monthlyOtherCost,
     monthlyCost,
+    netMonthlyCashflow,
+    debtBalance,
+    netAssetValue,
     periodicIncome,
     periodicCost,
     totalIncome,

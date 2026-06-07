@@ -345,7 +345,7 @@ export default function Settings() {
       {/* 关于 */}
       <section className="bg-white rounded-2xl p-4 text-center">
         <div className="text-lg font-bold text-[#1D1D1F]">年轮</div>
-        <div className="text-xs text-[#8E8E93] mt-1">v1.0.7</div>
+        <div className="text-xs text-[#8E8E93] mt-1">v1.0.8</div>
         <div className="text-xs text-[#8E8E93] mt-2">长期资产，慢慢长出自己的时间刻度</div>
         <div className="text-[10px] text-[#8E8E93] mt-2">所有数据存储在本地，零服务器、零账号</div>
         <button onClick={() => navigate('/about')} className="mt-3 text-xs text-[#1D1D1F] font-semibold">

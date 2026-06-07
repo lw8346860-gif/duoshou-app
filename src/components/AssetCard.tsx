@@ -1,6 +1,6 @@
 import type { Asset, Accessory, Category } from '../types';
 import { STATUS_LABELS } from '../types';
-import { calcUsedDays, calcTotalCost, formatMoney, formatDays, getDailyNetHoldingCost, getMonthlyIncome } from '../utils/calculations';
+import { calcUsedDays, calcTotalCost, formatMoney, formatDays, getDailyNetHoldingCost, getNetMonthlyCashflow } from '../utils/calculations';
 import CategoryIcon from './CategoryIcon';
 
 interface AssetCardProps {
@@ -15,7 +15,7 @@ export default function AssetCard({ asset, accessories, categories, onClick }: A
   const usedDays = calcUsedDays(asset.purchaseDate);
   const totalCost = calcTotalCost(asset, accessories);
   const dailyNetCost = getDailyNetHoldingCost(asset, accessories);
-  const monthlyIncome = getMonthlyIncome(asset);
+  const netMonthlyCashflow = getNetMonthlyCashflow(asset);
   const isNetIncome = dailyNetCost < 0;
 
   return (
@@ -54,9 +54,9 @@ export default function AssetCard({ asset, accessories, categories, onClick }: A
               </div>
             )}
           </div>
-          {monthlyIncome > 0 && (
+          {netMonthlyCashflow !== 0 && (
             <div className="cashflow-mini mt-2">
-              月现金流 {formatMoney(monthlyIncome)}
+              月净现金流 {formatMoney(netMonthlyCashflow)}
             </div>
           )}
         </div>

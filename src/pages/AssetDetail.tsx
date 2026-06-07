@@ -131,6 +131,14 @@ export default function AssetDetail() {
             <div className="text-[10px] text-[#8E8E93]">{asset.currentValue > 0 ? '当前估值' : '折旧估值'}</div>
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3">
+            <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.debtBalance, asset.currency)}</div>
+            <div className="text-[10px] text-[#8E8E93]">负债余额</div>
+          </div>
+          <div className="bg-[#F5F5F3] rounded-xl p-3">
+            <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.netAssetValue, asset.currency)}</div>
+            <div className="text-[10px] text-[#8E8E93]">净资产</div>
+          </div>
+          <div className="bg-[#F5F5F3] rounded-xl p-3">
             <div className="text-lg font-bold text-[#1D1D1F]">{formatDays(metrics.usedDays)}</div>
             <div className="text-[10px] text-[#8E8E93]">已使用天数</div>
           </div>
@@ -161,13 +169,25 @@ export default function AssetDetail() {
         <div className="bg-white rounded-2xl p-4">
           <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">现金流</h3>
           <div className="grid grid-cols-2 gap-3">
+            <div className="bg-[#F5F5F3] rounded-xl p-3 col-span-2">
+              <div className="text-xl font-bold text-[#1D1D1F]">{formatMoney(metrics.netMonthlyCashflow, asset.currency)}</div>
+              <div className="text-[10px] text-[#8E8E93]">月净现金流</div>
+            </div>
             <div className="bg-[#F5F5F3] rounded-xl p-3">
               <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.monthlyIncome, asset.currency)}</div>
               <div className="text-[10px] text-[#8E8E93]">月收入</div>
             </div>
             <div className="bg-[#F5F5F3] rounded-xl p-3">
-              <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.monthlyCost, asset.currency)}</div>
-              <div className="text-[10px] text-[#8E8E93]">月成本</div>
+              <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.monthlyPayment, asset.currency)}</div>
+              <div className="text-[10px] text-[#8E8E93]">当前月供</div>
+            </div>
+            <div className="bg-[#F5F5F3] rounded-xl p-3">
+              <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.monthlyMaintenanceCost, asset.currency)}</div>
+              <div className="text-[10px] text-[#8E8E93]">月维护</div>
+            </div>
+            <div className="bg-[#F5F5F3] rounded-xl p-3">
+              <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.monthlyOtherCost, asset.currency)}</div>
+              <div className="text-[10px] text-[#8E8E93]">其他月成本</div>
             </div>
             <div className="bg-[#F5F5F3] rounded-xl p-3">
               <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.totalIncome, asset.currency)}</div>
