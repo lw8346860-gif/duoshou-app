@@ -49,8 +49,7 @@ export default function AssetCard({ asset, accessories, categories, onClick }: A
             </div>
             {asset.status !== 'sold' && (
               <div className="text-xs font-bold text-[#1D1D1F] text-right">
-                {isNetIncome ? '净收益 ' : ''}
-                {formatMoney(Math.abs(dailyNetCost))}/天
+                {isNetIncome ? '日均净收益' : '日均持有成本'} {formatMoney(Math.abs(dailyNetCost))}
               </div>
             )}
           </div>

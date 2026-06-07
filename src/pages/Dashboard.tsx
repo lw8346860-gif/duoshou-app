@@ -33,11 +33,6 @@ export default function Dashboard() {
     const netMonthlyCashflow = assets.reduce((s, a) => s + getNetMonthlyCashflow(a), 0);
     const netYearlyCashflow = netMonthlyCashflow * 12;
     const netHoldingCost = assets.reduce((s, a) => s + getNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
-    const dailyAssets = active.filter(a => !a.isExcludedFromDailyAverage);
-    const avgDaily = dailyAssets.length > 0
-      ? dailyAssets.reduce((s, a) => s + getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0) / dailyAssets.length
-      : 0;
-
     return {
       total: assets.length,
       active: active.length,
@@ -50,7 +45,6 @@ export default function Dashboard() {
       netMonthlyCashflow,
       netYearlyCashflow,
       netHoldingCost,
-      avgDaily,
     };
   }, [assets, allAccessories]);
 

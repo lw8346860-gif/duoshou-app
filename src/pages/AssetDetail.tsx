@@ -144,11 +144,11 @@ export default function AssetDetail() {
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3">
             <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.dailyCost, asset.currency)}</div>
-            <div className="text-[10px] text-[#8E8E93]">日均成本</div>
+            <div className="text-[10px] text-[#8E8E93]">日均持有成本</div>
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3">
             <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(Math.abs(metrics.dailyNetHoldingCost), asset.currency)}</div>
-            <div className="text-[10px] text-[#8E8E93]">{isNetIncome ? '日均净收益' : '日均净成本'}</div>
+            <div className="text-[10px] text-[#8E8E93]">{isNetIncome ? '日均净收益' : '日均持有成本'}</div>
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3 col-span-2">
             <div className="text-lg font-bold text-[#1D1D1F]">{(metrics.retainRate * 100).toFixed(1)}%</div>
@@ -246,7 +246,7 @@ export default function AssetDetail() {
           <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">目标测算</h3>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-[#8E8E93]">目标日均成本</span>
+              <span className="text-[#8E8E93]">目标日均持有成本</span>
               <span className="text-[#1D1D1F]">{formatMoney(asset.targetDailyCost, asset.currency)}</span>
             </div>
             <div className="flex justify-between text-sm">

@@ -25,12 +25,11 @@ export default function Stats() {
     const totalInvested = assets.filter(a => !a.isExcludedFromTotal).reduce((s, a) => s + getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
     const totalValue = assets.reduce((s, a) => s + getCurrentValue(a), 0);
     const netCost = totalInvested - totalValue;
-    const dailyAssets = assets.filter(a => a.status === 'active' && !a.isExcludedFromDailyAverage);
-    const avgDaily = dailyAssets.length > 0
-      ? dailyAssets.reduce((s, a) => s + getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0) / dailyAssets.length
-      : 0;
+    const totalDaily = assets
+      .filter(a => a.status === 'active' && !a.isExcludedFromDailyAverage)
+      .reduce((s, a) => s + getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
 
-    return { totalInvested, totalValue, netCost, avgDaily, assetCount: assets.length, wishlistCount: wishlistItems.length };
+    return { totalInvested, totalValue, netCost, totalDaily, assetCount: assets.length, wishlistCount: wishlistItems.length };
   }, [assets, wishlistItems, allAccessories]);
 
   const rankings = useMemo(() => {
@@ -65,7 +64,7 @@ export default function Stats() {
     return Array.from(map.entries()).map(([catId, data]) => ({
       categoryId: catId,
       ...data,
-      avgDaily: data.dailyCount > 0 ? data.dailySum / data.dailyCount : 0,
+      totalDaily: data.dailySum,
     })).sort((a, b) => b.invested - a.invested);
   }, [assets, allAccessories]);
 
@@ -85,7 +84,7 @@ export default function Stats() {
         <StatBox label="净消费" value={formatCurrency(stats.netCost)} />
         <StatBox label="资产数量" value={String(stats.assetCount)} />
         <StatBox label="心愿数量" value={String(stats.wishlistCount)} />
-        <StatBox label="平均日均" value={formatCurrency(stats.avgDaily)} />
+        <StatBox label="合计日均持有成本" value={formatCurrency(stats.totalDaily)} />
       </div>
 
       {/* Tabs */}
@@ -122,7 +121,7 @@ export default function Stats() {
           {/* Bar Charts */}
           {rankings.highestDaily.length > 0 && (
             <div className="bg-white rounded-2xl p-4 border border-[#E5E5E5] mb-4">
-              <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">日均成本 Top10</h3>
+              <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">日均持有成本 Top10</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={rankings.highestDaily.map(a => ({ name: a.name.slice(0, 6), daily: getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))}>
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
@@ -153,8 +152,8 @@ export default function Stats() {
       {tab === 'rankings' && (
         <>
           <RankingSection title="最贵 Top10" items={rankings.mostExpensive} getValue={a => formatCurrency(getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
-          <RankingSection title="最高日均 Top10" items={rankings.highestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
-          <RankingSection title="最低日均 Top10" items={rankings.lowestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
+          <RankingSection title="日均持有成本最高 Top10" items={rankings.highestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
+          <RankingSection title="日均持有成本最低 Top10" items={rankings.lowestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
           <RankingSection title="最大亏损 Top10" items={rankings.mostLoss} getValue={a => formatCurrency(getLoss(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
           <RankingSection title="最保值 Top10" items={rankings.bestRetention} getValue={a => `${(getRetentionRate(a, allAccessories.filter(acc => acc.assetId === a.id)) * 100).toFixed(1)}%`} />
           <RankingSection title="最闲置 Top10" items={rankings.mostIdle} getValue={a => `${getUsedDays(a)}天`} />
@@ -176,7 +175,7 @@ export default function Stats() {
                   <div>投入: <span className="font-bold">{formatCurrency(cs.invested)}</span></div>
                   <div>估值: <span className="font-bold">{formatCurrency(cs.value)}</span></div>
                   <div>亏损: <span className="font-bold">{formatCurrency(cs.loss)}</span></div>
-                  <div>均日: <span className="font-bold">{formatCurrency(cs.avgDaily)}</span></div>
+                  <div>合计日均: <span className="font-bold">{formatCurrency(cs.totalDaily)}</span></div>
                 </div>
               </div>
             );

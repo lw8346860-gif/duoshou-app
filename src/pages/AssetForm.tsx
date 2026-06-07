@@ -304,7 +304,7 @@ export default function AssetForm() {
             />
           </label>
           <label className="field-label">
-            日均成本
+            日均持有成本
             <input
               type="number"
               placeholder="自动"
