@@ -3,8 +3,8 @@ import { useAllAccessories, useAssets } from '../hooks/useAssets';
 import { useWishlist } from '../hooks/useWishlist';
 import { useCategories } from '../hooks/useSettings';
 import {
-  getTotalCost, getDailyCost, getLoss, getRetentionRate, getUsedDays,
-  formatCurrency, getCurrentValue,
+  getTotalCost, getLoss, getRetentionRate, getUsedDays,
+  formatCurrency, getCurrentValue, getDailyNetHoldingCost,
 } from '../utils/calculations';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Asset } from '../types';
@@ -25,11 +25,11 @@ export default function Stats() {
     const totalInvested = assets.filter(a => !a.isExcludedFromTotal).reduce((s, a) => s + getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
     const totalValue = assets.reduce((s, a) => s + getCurrentValue(a), 0);
     const netCost = totalInvested - totalValue;
-    const totalDaily = assets
+    const totalDailyNet = assets
       .filter(a => a.status === 'active' && !a.isExcludedFromDailyAverage)
-      .reduce((s, a) => s + getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
+      .reduce((s, a) => s - getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)), 0);
 
-    return { totalInvested, totalValue, netCost, totalDaily, assetCount: assets.length, wishlistCount: wishlistItems.length };
+    return { totalInvested, totalValue, netCost, totalDailyNet, assetCount: assets.length, wishlistCount: wishlistItems.length };
   }, [assets, wishlistItems, allAccessories]);
 
   const rankings = useMemo(() => {
@@ -38,8 +38,8 @@ export default function Stats() {
 
     return {
       mostExpensive: sorted(a => getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id))),
-      highestDaily: sorted(a => a.status === 'active' ? getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)) : 0),
-      lowestDaily: sorted(a => a.status === 'active' ? getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)) : 0, false).filter(a => a.status === 'active'),
+      highestDaily: sorted(a => a.status === 'active' ? -getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)) : 0),
+      lowestDaily: sorted(a => a.status === 'active' ? -getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)) : 0, false).filter(a => a.status === 'active'),
       mostLoss: sorted(a => getLoss(a, allAccessories.filter(acc => acc.assetId === a.id))),
       bestRetention: sorted(a => getRetentionRate(a, allAccessories.filter(acc => acc.assetId === a.id))),
       mostIdle: sorted(a => a.status === 'idle' ? getUsedDays(a) : 0),
@@ -47,16 +47,16 @@ export default function Stats() {
   }, [assets, allAccessories]);
 
   const categoryStats = useMemo(() => {
-    const map = new Map<string, { count: number; invested: number; value: number; loss: number; dailySum: number; dailyCount: number }>();
+    const map = new Map<string, { count: number; invested: number; value: number; loss: number; dailyNetSum: number; dailyCount: number }>();
     assets.forEach(a => {
-      const existing = map.get(a.categoryId) || { count: 0, invested: 0, value: 0, loss: 0, dailySum: 0, dailyCount: 0 };
+      const existing = map.get(a.categoryId) || { count: 0, invested: 0, value: 0, loss: 0, dailyNetSum: 0, dailyCount: 0 };
       existing.count++;
       const assetAccessories = allAccessories.filter(acc => acc.assetId === a.id);
       existing.invested += getTotalCost(a, assetAccessories);
       existing.value += getCurrentValue(a);
       existing.loss += getLoss(a, assetAccessories);
       if (a.status === 'active') {
-        existing.dailySum += getDailyCost(a, assetAccessories);
+        existing.dailyNetSum += -getDailyNetHoldingCost(a, assetAccessories);
         existing.dailyCount++;
       }
       map.set(a.categoryId, existing);
@@ -64,7 +64,7 @@ export default function Stats() {
     return Array.from(map.entries()).map(([catId, data]) => ({
       categoryId: catId,
       ...data,
-      totalDaily: data.dailySum,
+      totalDailyNet: data.dailyNetSum,
     })).sort((a, b) => b.invested - a.invested);
   }, [assets, allAccessories]);
 
@@ -84,7 +84,7 @@ export default function Stats() {
         <StatBox label="净消费" value={formatCurrency(stats.netCost)} />
         <StatBox label="资产数量" value={String(stats.assetCount)} />
         <StatBox label="心愿数量" value={String(stats.wishlistCount)} />
-        <StatBox label="合计日均持有成本" value={formatCurrency(stats.totalDaily)} />
+        <StatBox label="合计日均净损益" value={formatCurrency(stats.totalDailyNet)} />
       </div>
 
       {/* Tabs */}
@@ -121,9 +121,9 @@ export default function Stats() {
           {/* Bar Charts */}
           {rankings.highestDaily.length > 0 && (
             <div className="bg-white rounded-2xl p-4 border border-[#E5E5E5] mb-4">
-              <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">日均持有成本 Top10</h3>
+              <h3 className="text-sm font-semibold text-[#1D1D1F] mb-3">日均净损益 Top10</h3>
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={rankings.highestDaily.map(a => ({ name: a.name.slice(0, 6), daily: getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))}>
+                <BarChart data={rankings.highestDaily.map(a => ({ name: a.name.slice(0, 6), daily: -getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))}>
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
                   <YAxis tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
                   <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0))} />
@@ -152,8 +152,8 @@ export default function Stats() {
       {tab === 'rankings' && (
         <>
           <RankingSection title="最贵 Top10" items={rankings.mostExpensive} getValue={a => formatCurrency(getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
-          <RankingSection title="日均持有成本最高 Top10" items={rankings.highestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
-          <RankingSection title="日均持有成本最低 Top10" items={rankings.lowestDaily} getValue={a => formatCurrency(getDailyCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
+          <RankingSection title="日均净损益最高 Top10" items={rankings.highestDaily} getValue={a => formatCurrency(-getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
+          <RankingSection title="日均净损益最低 Top10" items={rankings.lowestDaily} getValue={a => formatCurrency(-getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
           <RankingSection title="最大亏损 Top10" items={rankings.mostLoss} getValue={a => formatCurrency(getLoss(a, allAccessories.filter(acc => acc.assetId === a.id)))} />
           <RankingSection title="最保值 Top10" items={rankings.bestRetention} getValue={a => `${(getRetentionRate(a, allAccessories.filter(acc => acc.assetId === a.id)) * 100).toFixed(1)}%`} />
           <RankingSection title="最闲置 Top10" items={rankings.mostIdle} getValue={a => `${getUsedDays(a)}天`} />
@@ -175,7 +175,7 @@ export default function Stats() {
                   <div>投入: <span className="font-bold">{formatCurrency(cs.invested)}</span></div>
                   <div>估值: <span className="font-bold">{formatCurrency(cs.value)}</span></div>
                   <div>亏损: <span className="font-bold">{formatCurrency(cs.loss)}</span></div>
-                  <div>合计日均: <span className="font-bold">{formatCurrency(cs.totalDaily)}</span></div>
+                  <div>日均净损益: <span className="font-bold">{formatCurrency(cs.totalDailyNet)}</span></div>
                 </div>
               </div>
             );

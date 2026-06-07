@@ -1,6 +1,6 @@
 import type { Asset, Accessory, Category } from '../types';
 import { STATUS_LABELS } from '../types';
-import { calcUsedDays, calcTotalCost, formatMoney, formatDays, getDailyNetHoldingCost, getNetMonthlyCashflow } from '../utils/calculations';
+import { calcUsedDays, formatMoney, formatDays, getCurrentValue, getDailyNetHoldingCost, getNetMonthlyCashflow } from '../utils/calculations';
 import CategoryIcon from './CategoryIcon';
 
 interface AssetCardProps {
@@ -13,10 +13,9 @@ interface AssetCardProps {
 export default function AssetCard({ asset, accessories, categories, onClick }: AssetCardProps) {
   const cat = categories.find(c => c.id === asset.categoryId);
   const usedDays = calcUsedDays(asset.purchaseDate);
-  const totalCost = calcTotalCost(asset, accessories);
-  const dailyNetCost = getDailyNetHoldingCost(asset, accessories);
+  const currentValue = getCurrentValue(asset);
+  const dailyNetProfitLoss = -getDailyNetHoldingCost(asset, accessories);
   const netMonthlyCashflow = getNetMonthlyCashflow(asset);
-  const isNetIncome = dailyNetCost < 0;
 
   return (
     <div
@@ -39,25 +38,30 @@ export default function AssetCard({ asset, accessories, categories, onClick }: A
             </span>
           </div>
 
-          <div className="text-xs text-[#8E8E93] mb-2">
+          <div className="text-xs text-[#8E8E93] mb-2 flex items-center gap-1.5">
             {cat && <span>{cat.name}</span>}
+            <span>·</span>
+            <span>{formatDays(usedDays)}</span>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-[#8E8E93]">
-              {formatMoney(totalCost)} · {formatDays(usedDays)}
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[10px] text-[#8E8E93] mb-0.5">当前估值</div>
+              <div className="text-sm font-black text-[#1D1D1F] truncate">{formatMoney(currentValue)}</div>
             </div>
             {asset.status !== 'sold' && (
-              <div className="text-xs font-bold text-[#1D1D1F] text-right">
-                {isNetIncome ? '日均净收益' : '日均持有成本'} {formatMoney(Math.abs(dailyNetCost))}
+              <div className="min-w-0 text-left">
+                <div className="text-[10px] text-[#8E8E93] mb-0.5">日均净损益</div>
+                <div className="text-xs font-bold text-[#1D1D1F] truncate">{formatMoney(dailyNetProfitLoss)}/日</div>
               </div>
             )}
           </div>
-          {netMonthlyCashflow !== 0 && (
-            <div className="cashflow-mini mt-2">
+
+          <div className="mt-2 flex justify-end">
+            <div className="cashflow-mini">
               月净现金流 {formatMoney(netMonthlyCashflow)}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

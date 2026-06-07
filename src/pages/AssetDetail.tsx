@@ -31,7 +31,7 @@ export default function AssetDetail() {
   }
 
   const metrics = calcAssetMetrics(asset, accessories);
-  const isNetIncome = metrics.dailyNetHoldingCost < 0;
+  const dailyNetProfitLoss = -metrics.dailyNetHoldingCost;
   const category = categories.find(cat => cat.id === asset.categoryId);
 
   const handleDelete = async () => {
@@ -143,12 +143,12 @@ export default function AssetDetail() {
             <div className="text-[10px] text-[#8E8E93]">已使用天数</div>
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3">
-            <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.dailyCost, asset.currency)}</div>
-            <div className="text-[10px] text-[#8E8E93]">日均持有成本</div>
+            <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(dailyNetProfitLoss, asset.currency)}</div>
+            <div className="text-[10px] text-[#8E8E93]">日均净损益</div>
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3">
-            <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(Math.abs(metrics.dailyNetHoldingCost), asset.currency)}</div>
-            <div className="text-[10px] text-[#8E8E93]">{isNetIncome ? '日均净收益' : '日均持有成本'}</div>
+            <div className="text-lg font-bold text-[#1D1D1F]">{formatMoney(metrics.dailyCost, asset.currency)}</div>
+            <div className="text-[10px] text-[#8E8E93]">日均折耗成本</div>
           </div>
           <div className="bg-[#F5F5F3] rounded-xl p-3 col-span-2">
             <div className="text-lg font-bold text-[#1D1D1F]">{(metrics.retainRate * 100).toFixed(1)}%</div>

@@ -1,11 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAllAccessories, useAssets } from '../hooks/useAssets';
 import { useCategories } from '../hooks/useSettings';
 import {
   formatCurrency,
   getCurrentValue,
-  getDailyNetHoldingCost,
   getDebtBalance,
   getNetAssetValue,
   getNetMonthlyCashflow,
@@ -19,6 +18,8 @@ export default function Dashboard() {
   const allAccessories = useAllAccessories();
   const { categories } = useCategories();
   const navigate = useNavigate();
+  const [holdingHighlightMode, setHoldingHighlightMode] = useState<'max' | 'min'>('max');
+  const [cashflowHighlightMode, setCashflowHighlightMode] = useState<'max' | 'min'>('max');
 
   const stats = useMemo(() => {
     const active = assets.filter(a => a.status === 'active');
@@ -49,19 +50,40 @@ export default function Dashboard() {
   }, [assets, allAccessories]);
 
   const highlights = useMemo(() => {
-    const cashflowKing = assets
-      .filter(a => getNetMonthlyCashflow(a) !== 0)
-      .sort((a, b) => getNetMonthlyCashflow(b) - getNetMonthlyCashflow(a))[0];
-    const mostInvested = assets
-      .map(a => ({ asset: a, cost: getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))
-      .sort((a, b) => b.cost - a.cost)[0]?.asset;
-    const bestDaily = assets
-      .filter(a => a.status === 'active')
-      .map(a => ({ asset: a, daily: getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id)) }))
-      .sort((a, b) => a.daily - b.daily)[0]?.asset;
+    const valuedAssets = assets
+      .map(asset => ({ asset, value: getNetAssetValue(asset) }))
+      .sort((a, b) => b.value - a.value);
+    const cashflowAssets = assets
+      .map(asset => ({ asset, value: getNetMonthlyCashflow(asset) }))
+      .sort((a, b) => b.value - a.value);
 
-    return { cashflowKing, mostInvested, bestDaily };
-  }, [assets, allAccessories]);
+    return {
+      largestHolding: valuedAssets[0],
+      smallestHolding: valuedAssets[valuedAssets.length - 1],
+      highestCashflow: cashflowAssets[0],
+      lowestCashflow: cashflowAssets[cashflowAssets.length - 1],
+    };
+  }, [assets]);
+
+  const holdingHighlight = holdingHighlightMode === 'max' ? highlights.largestHolding : highlights.smallestHolding;
+  const cashflowHighlight = cashflowHighlightMode === 'max' ? highlights.highestCashflow : highlights.lowestCashflow;
+
+  const distribution = useMemo(() => {
+    const grouped = assets.reduce<Array<{ name: string; value: number }>>((items, asset) => {
+      const value = Math.max(0, getNetAssetValue(asset));
+      if (value <= 0) return items;
+      const categoryName = categories.find(category => category.id === asset.categoryId)?.name ?? '其他';
+      const existing = items.find(item => item.name === categoryName);
+      if (existing) existing.value += value;
+      else items.push({ name: categoryName, value });
+      return items;
+    }, []);
+
+    const sorted = grouped.sort((a, b) => b.value - a.value);
+    const top = sorted.slice(0, 4);
+    const rest = sorted.slice(4).reduce((sum, item) => sum + item.value, 0);
+    return rest > 0 ? [...top, { name: '其他', value: rest }] : top;
+  }, [assets, categories]);
 
   const recentAssets = useMemo(() => assets.slice(0, 5), [assets]);
 
@@ -111,16 +133,27 @@ export default function Dashboard() {
       </section>
 
       <section className="grid grid-cols-2 gap-3 mb-4">
-        {highlights.mostInvested && (
-          <Highlight title="最大持仓" assetName={highlights.mostInvested.name} value={formatCurrency(getTotalCost(highlights.mostInvested, allAccessories.filter(acc => acc.assetId === highlights.mostInvested!.id)))} onClick={() => navigate(`/assets/${highlights.mostInvested!.id}`)} />
+        {holdingHighlight && (
+          <Highlight
+            title={holdingHighlightMode === 'max' ? '最大持仓' : '最小持仓'}
+            assetName={holdingHighlight.asset.name}
+            value={formatCurrency(holdingHighlight.value)}
+            hint="点击切换"
+            onClick={() => setHoldingHighlightMode(mode => mode === 'max' ? 'min' : 'max')}
+          />
         )}
-        {highlights.cashflowKing && (
-          <Highlight title="净现金流最高" assetName={highlights.cashflowKing.name} value={`${formatCurrency(getNetMonthlyCashflow(highlights.cashflowKing))}/月`} onClick={() => navigate(`/assets/${highlights.cashflowKing!.id}`)} />
-        )}
-        {highlights.bestDaily && (
-          <Highlight title="日均最优" assetName={highlights.bestDaily.name} value={`${formatCurrency(getDailyNetHoldingCost(highlights.bestDaily, allAccessories.filter(acc => acc.assetId === highlights.bestDaily!.id)))}/天`} onClick={() => navigate(`/assets/${highlights.bestDaily!.id}`)} />
+        {cashflowHighlight && (
+          <Highlight
+            title={cashflowHighlightMode === 'max' ? '净现金流最高' : '净现金流最低'}
+            assetName={cashflowHighlight.asset.name}
+            value={`${formatCurrency(cashflowHighlight.value)}/月`}
+            hint="点击切换"
+            onClick={() => setCashflowHighlightMode(mode => mode === 'max' ? 'min' : 'max')}
+          />
         )}
       </section>
+
+      <AssetDistribution data={distribution} />
 
       <section className="mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -171,12 +204,65 @@ function SmallMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Highlight({ title, assetName, value, onClick }: { title: string; assetName: string; value: string; onClick: () => void }) {
+function Highlight({ title, assetName, value, hint, onClick }: { title: string; assetName: string; value: string; hint?: string; onClick: () => void }) {
   return (
     <button onClick={onClick} className="highlight-card bg-white rounded-2xl p-4 text-left">
-      <div className="text-xs text-[#8E8E93] mb-2">{title}</div>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="text-xs text-[#8E8E93]">{title}</div>
+        {hint && <div className="text-[10px] text-[#C57A3D]">{hint}</div>}
+      </div>
       <div className="text-sm font-black text-[#1D1D1F] truncate">{assetName}</div>
       <div className="text-xs text-[#1D1D1F] mt-1 font-bold truncate">{value}</div>
     </button>
+  );
+}
+
+function AssetDistribution({ data }: { data: Array<{ name: string; value: number }> }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const palette = ['#FFB15E', '#E07633', '#B8501F', '#F3D2A8', '#7B3E1D'];
+  let cursor = 0;
+  const gradient = total > 0
+    ? data.map((item, index) => {
+      const start = cursor;
+      const size = (item.value / total) * 360;
+      cursor += size;
+      return `${palette[index % palette.length]} ${start}deg ${cursor}deg`;
+    }).join(', ')
+    : '#EEE8E0 0deg 360deg';
+
+  return (
+    <section className="asset-distribution bg-white rounded-3xl p-4 mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-base font-black text-[#1D1D1F]">净资产分布</h2>
+          <p className="text-xs text-[#8E8E93] mt-1">按当前净资产估算</p>
+        </div>
+        <div className="text-xs font-bold text-[#1D1D1F]">{formatCurrency(total)}</div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="asset-pie-wrap" aria-hidden="true">
+          <div className="asset-pie-shadow" />
+          <div className="asset-pie" style={{ background: `conic-gradient(${gradient})` }}>
+            <div className="asset-pie-core" />
+          </div>
+        </div>
+        <div className="flex-1 min-w-0 space-y-2">
+          {data.length === 0 && (
+            <div className="text-xs text-[#8E8E93]">有估值的资产会在这里形成分布。</div>
+          )}
+          {data.map((item, index) => (
+            <div key={item.name} className="distribution-row">
+              <span style={{ backgroundColor: palette[index % palette.length] }} />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-[#1D1D1F] truncate">{item.name}</div>
+                <div className="text-[10px] text-[#8E8E93]">{total > 0 ? `${((item.value / total) * 100).toFixed(0)}%` : '0%'}</div>
+              </div>
+              <strong>{formatCurrency(item.value)}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

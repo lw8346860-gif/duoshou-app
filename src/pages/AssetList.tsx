@@ -11,11 +11,11 @@ import { formatMoney, getCurrentValue, getDailyNetHoldingCost, getDebtBalance, g
 type SortKey = 'purchaseDate' | 'totalCost' | 'currentValue' | 'netCashflow' | 'dailyHoldingCost' | 'updatedAt';
 type AssetStatMode = 'net' | 'debt' | 'gross';
 type CashflowStatMode = 'monthly' | 'yearly';
-type HoldingCostStatMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
+type DailyNetStatMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 const ASSET_STAT_MODES: AssetStatMode[] = ['net', 'debt', 'gross'];
 const CASHFLOW_STAT_MODES: CashflowStatMode[] = ['monthly', 'yearly'];
-const HOLDING_COST_STAT_MODES: HoldingCostStatMode[] = ['daily', 'weekly', 'monthly', 'yearly'];
+const DAILY_NET_STAT_MODES: DailyNetStatMode[] = ['daily', 'weekly', 'monthly', 'yearly'];
 
 export default function AssetList() {
   const { assets } = useAssets();
@@ -32,7 +32,7 @@ export default function AssetList() {
   const [showFilters, setShowFilters] = useState(false);
   const [assetStatMode, setAssetStatMode] = useState<AssetStatMode>('net');
   const [cashflowStatMode, setCashflowStatMode] = useState<CashflowStatMode>('monthly');
-  const [holdingCostStatMode, setHoldingCostStatMode] = useState<HoldingCostStatMode>('daily');
+  const [dailyNetStatMode, setDailyNetStatMode] = useState<DailyNetStatMode>('daily');
 
   const filtered = useMemo(() => {
     let result = [...assets];
@@ -62,7 +62,7 @@ export default function AssetList() {
         case 'totalCost': return getTotalCost(b, allAccessories.filter(acc => acc.assetId === b.id)) - getTotalCost(a, allAccessories.filter(acc => acc.assetId === a.id));
         case 'currentValue': return getCurrentValue(b) - getCurrentValue(a);
         case 'netCashflow': return getNetMonthlyCashflow(b) - getNetMonthlyCashflow(a);
-        case 'dailyHoldingCost': return getDailyNetHoldingCost(b, allAccessories.filter(acc => acc.assetId === b.id)) - getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id));
+        case 'dailyHoldingCost': return -getDailyNetHoldingCost(b, allAccessories.filter(acc => acc.assetId === b.id)) - -getDailyNetHoldingCost(a, allAccessories.filter(acc => acc.assetId === a.id));
         case 'updatedAt': return b.updatedAt.localeCompare(a.updatedAt);
         default: return b.purchaseDate.localeCompare(a.purchaseDate);
       }
@@ -77,9 +77,9 @@ export default function AssetList() {
     const totalAssetValue = activeAssets.reduce((sum, asset) => sum + getCurrentValue(asset), 0);
     const totalDebt = activeAssets.reduce((sum, asset) => sum + getDebtBalance(asset), 0);
     const netMonthlyCashflow = activeAssets.reduce((sum, asset) => sum + getNetMonthlyCashflow(asset), 0);
-    const dailyHoldingCost = activeAssets
+    const dailyNetProfitLoss = activeAssets
       .filter(asset => !asset.isExcludedFromDailyAverage)
-      .reduce((sum, asset) => sum + getDailyNetHoldingCost(asset, allAccessories.filter(acc => acc.assetId === asset.id)), 0);
+      .reduce((sum, asset) => sum - getDailyNetHoldingCost(asset, allAccessories.filter(acc => acc.assetId === asset.id)), 0);
 
     return {
       count: activeAssets.length,
@@ -87,7 +87,7 @@ export default function AssetList() {
       totalAssetValue,
       totalDebt,
       netMonthlyCashflow,
-      dailyHoldingCost,
+      dailyNetProfitLoss,
     };
   }, [filtered, allAccessories]);
 
@@ -109,18 +109,18 @@ export default function AssetList() {
     return { label: '月净现金流', value: listStats.netMonthlyCashflow };
   }, [cashflowStatMode, listStats.netMonthlyCashflow]);
 
-  const holdingCostStat = useMemo(() => {
-    switch (holdingCostStatMode) {
+  const dailyNetStat = useMemo(() => {
+    switch (dailyNetStatMode) {
       case 'weekly':
-        return { label: '合计周持有成本', value: listStats.dailyHoldingCost * 7 };
+        return { label: '合计周净损益', value: listStats.dailyNetProfitLoss * 7 };
       case 'monthly':
-        return { label: '合计月持有成本', value: listStats.dailyHoldingCost * (365 / 12) };
+        return { label: '合计月净损益', value: listStats.dailyNetProfitLoss * (365 / 12) };
       case 'yearly':
-        return { label: '合计年持有成本', value: listStats.dailyHoldingCost * 365 };
+        return { label: '合计年净损益', value: listStats.dailyNetProfitLoss * 365 };
       default:
-        return { label: '合计日均持有成本', value: listStats.dailyHoldingCost };
+        return { label: '合计日均净损益', value: listStats.dailyNetProfitLoss };
     }
-  }, [holdingCostStatMode, listStats.dailyHoldingCost]);
+  }, [dailyNetStatMode, listStats.dailyNetProfitLoss]);
 
   const cycleAssetStat = () => {
     setAssetStatMode(current => ASSET_STAT_MODES[(ASSET_STAT_MODES.indexOf(current) + 1) % ASSET_STAT_MODES.length]);
@@ -130,8 +130,8 @@ export default function AssetList() {
     setCashflowStatMode(current => CASHFLOW_STAT_MODES[(CASHFLOW_STAT_MODES.indexOf(current) + 1) % CASHFLOW_STAT_MODES.length]);
   };
 
-  const cycleHoldingCostStat = () => {
-    setHoldingCostStatMode(current => HOLDING_COST_STAT_MODES[(HOLDING_COST_STAT_MODES.indexOf(current) + 1) % HOLDING_COST_STAT_MODES.length]);
+  const cycleDailyNetStat = () => {
+    setDailyNetStatMode(current => DAILY_NET_STAT_MODES[(DAILY_NET_STAT_MODES.indexOf(current) + 1) % DAILY_NET_STAT_MODES.length]);
   };
 
   return (
@@ -198,7 +198,7 @@ export default function AssetList() {
                 { key: 'totalCost' as SortKey, label: '投入金额' },
                 { key: 'currentValue' as SortKey, label: '估值金额' },
                 { key: 'netCashflow' as SortKey, label: '净现金流' },
-                { key: 'dailyHoldingCost' as SortKey, label: '日均持有成本' },
+                { key: 'dailyHoldingCost' as SortKey, label: '日均净损益' },
                 { key: 'updatedAt' as SortKey, label: '最近更新' },
               ].map(s => (
                 <button
@@ -238,7 +238,7 @@ export default function AssetList() {
             <div className="grid grid-cols-3 gap-2">
               <ListStat label={assetStat.label} value={formatMoney(assetStat.value)} onClick={cycleAssetStat} />
               <ListStat label={cashflowStat.label} value={formatMoney(cashflowStat.value)} onClick={cycleCashflowStat} />
-              <ListStat label={holdingCostStat.label} value={formatMoney(holdingCostStat.value)} onClick={cycleHoldingCostStat} />
+              <ListStat label={dailyNetStat.label} value={formatMoney(dailyNetStat.value)} onClick={cycleDailyNetStat} />
             </div>
           </section>
         )}
